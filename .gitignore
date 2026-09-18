@@ -30,3 +30,6 @@ dist-ssr
 
 # Config local de Claude Code
 .claude/
+
+# El PDF se regenera con el script; no se versiona
+docs/Manual-Obras.pdf

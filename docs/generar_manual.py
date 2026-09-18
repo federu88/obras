@@ -1,16 +1,24 @@
 # -*- coding: utf-8 -*-
-"""Genera el manual de uso de Obras en PDF."""
+"""Genera el manual de uso de Obras en PDF.
+
+    pip install reportlab
+    python docs/generar_manual.py
+
+Ojo con los caracteres: las fuentes estándar de PDF no tienen flechas ni
+subíndices, y se imprimen como cuadrados negros. Solo se usan caracteres que
+existen en WinAnsi: acentos, comillas angulares, guion largo, ›, ·, ², × y ÷.
+"""
+import os
+
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (BaseDocTemplate, Frame, PageBreak, PageTemplate,
-                                Paragraph, Spacer, Table, TableStyle, KeepTogether)
+                                Paragraph, Spacer, Table, TableStyle)
 
-SALIDA = (r"C:\Users\feder\AppData\Local\Temp\claude"
-          r"\C--Users-feder-CLEAN-SEA-S-A-FILES-Terra-Mare---Documentos-Integra"
-          r"\0a9c950f-204b-4a63-87e6-d9dcf23d54a3\scratchpad\Manual-Obras.pdf")
+SALIDA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Manual-Obras.pdf')
 
 # Paleta de la app
 BRONCE = colors.HexColor('#b4703a')
