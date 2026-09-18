@@ -391,3 +391,15 @@ export const listInvestorMovements = (investorId) =>
     .eq('investor_id', investorId)
     .order('movement_date', { ascending: false })
     .then(unwrap)
+
+/* --- Usuarios ------------------------------------------------------------- */
+
+export const listProfiles = () =>
+  supabase
+    .from('profiles')
+    .select('id, full_name, email, role, is_active, created_at')
+    .order('created_at')
+    .then(unwrap)
+
+export const updateProfileRole = (id, role) =>
+  supabase.from('profiles').update({ role }).eq('id', id).select().single().then(unwrap)
