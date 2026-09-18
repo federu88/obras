@@ -15,7 +15,8 @@ import {
 } from '../lib/queries'
 import { usd, ars, date } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
-import { PageHead, Table, Loading, ErrorBox, Kpi, Drawer, Field, Badge } from '../components/ui'
+import { PageHead, Table, Loading, ErrorBox, Kpi, Drawer, Field } from '../components/ui'
+import GastoForm from '../components/GastoForm'
 
 const hoyIso = () => new Date().toISOString().slice(0, 10)
 
@@ -111,6 +112,7 @@ export default function DiaADia() {
   }
 
   /* --- Cambio de dólares --------------------------------------------------- */
+  const [editando, setEditando] = useState(null)
   const [cambio, setCambio] = useState(null)
   const [cambiando, setCambiando] = useState(false)
 
@@ -323,16 +325,21 @@ export default function DiaADia() {
                 <td className="num">{usd(x.amount_usd)}</td>
                 <td className="nowrap">
                   {canManage && (
-                    <button
-                      className="icon-btn"
-                      onClick={async () => {
-                        await updateExpense(x.id, { status: 'anulado' })
-                        gastos.reload()
-                        mensual.reload()
-                      }}
-                    >
-                      Anular
-                    </button>
+                    <>
+                      <button className="icon-btn" onClick={() => setEditando(x)}>
+                        Editar
+                      </button>
+                      <button
+                        className="icon-btn"
+                        onClick={async () => {
+                          await updateExpense(x.id, { status: 'anulado' })
+                          gastos.reload()
+                          mensual.reload()
+                        }}
+                      >
+                        Anular
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>
@@ -366,6 +373,19 @@ export default function DiaADia() {
             )}
           />
         </section>
+      )}
+
+      {editando && (
+        <GastoForm
+          gasto={editando}
+          projectId={projectId}
+          onClose={() => setEditando(null)}
+          onSave={async (payload) => {
+            await updateExpense(editando.id, payload)
+            gastos.reload()
+            mensual.reload()
+          }}
+        />
       )}
 
       {/* --- Cambio de dólares ------------------------------------------------ */}
