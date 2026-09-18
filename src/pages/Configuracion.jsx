@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAsync } from '../lib/useAsync'
-import { listFxRates, createFxRate, listProfiles, updateProfileRole } from '../lib/queries'
+import { listFxRates, createFxRate, updateFxRate, listProfiles, updateProfileRole } from '../lib/queries'
 import { backfill } from '../lib/fx'
 import { date } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
@@ -17,7 +17,7 @@ const ROLES = {
 
 export default function Configuracion() {
   const { canManage, isAdmin, profile } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState({
     rate_date: new Date().toISOString().slice(0, 10),
     ars_per_usd: '',
@@ -36,14 +36,15 @@ export default function Configuracion() {
     setSaving(true)
     setFormError(null)
     try {
-      await createFxRate({
+      const payload = {
         rate_date: form.rate_date,
-        source: 'MEP',
         ars_per_usd: Number(form.ars_per_usd),
         note: form.note || 'Carga manual',
-      })
+      }
+      if (abierto === 'nuevo') await createFxRate({ ...payload, source: 'MEP' })
+      else await updateFxRate(abierto.id, payload)
       setForm({ ...form, ars_per_usd: '', note: '' })
-      setOpen(false)
+      setAbierto(null)
       rates.reload()
     } catch (err) {
       setFormError(err.message)
@@ -155,7 +156,13 @@ export default function Configuracion() {
                   ? `Trayendo… ${cargando.revisadas}/${cargando.total}`
                   : 'Traer últimos 90 días'}
               </button>
-              <button className="btn btn-primary" onClick={() => setOpen(true)}>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setForm({ rate_date: new Date().toISOString().slice(0, 10), ars_per_usd: '', note: '' })
+                  setAbierto('nuevo')
+                }}
+              >
                 + Cotización manual
               </button>
             </div>
@@ -188,6 +195,7 @@ export default function Configuracion() {
               { key: 'v', label: 'ARS por USD', num: true },
               { key: 's', label: 'Fuente' },
               { key: 'n', label: 'Detalle' },
+              { key: 'act', label: '' },
             ]}
             rows={rates.data ?? []}
             empty="Todavía no hay cotizaciones cargadas. Probá con “Traer últimos 90 días”."
@@ -197,16 +205,34 @@ export default function Configuracion() {
                 <td className="num">{ARS.format(r.ars_per_usd)}</td>
                 <td>{r.source}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{r.note ?? '—'}</td>
+                <td className="nowrap">
+                  {canManage && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        setForm({
+                          rate_date: r.rate_date,
+                          ars_per_usd: String(r.ars_per_usd),
+                          note: r.note ?? '',
+                        })
+                        setAbierto(r)
+                      }}
+                    >
+                      Editar
+                    </button>
+                  )}
+                </td>
               </tr>
             )}
           />
         )}
       </section>
 
-      {open && (
+      {abierto && (
         <Drawer
-          title="Cotización manual"
-          onClose={() => setOpen(false)}
+          title={abierto === 'nuevo' ? 'Cotización manual' : 'Editar cotización'}
+          submitLabel={abierto === 'nuevo' ? 'Guardar' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
           onSubmit={save}
           submitting={saving}
         >

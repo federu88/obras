@@ -3,6 +3,7 @@ import { useAsync } from '../lib/useAsync'
 import {
   listCapitalMovements,
   createCapitalMovement,
+  updateCapitalMovement,
   voidCapitalMovement,
   listInvestors,
   listProjects,
@@ -38,7 +39,7 @@ const EMPTY = {
 
 export default function Capital() {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -81,15 +82,31 @@ export default function Capital() {
         fx_usd: form.currency === 'ARS' ? Number(form.fx_usd) : null,
         concept: form.concept || null,
       }
-      await createCapitalMovement(payload)
+      if (abierto === 'nuevo') await createCapitalMovement(payload)
+      else await updateCapitalMovement(abierto.id, payload)
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       movements.reload()
     } catch (err) {
       setFormError(err.message)
     } finally {
       setSaving(false)
     }
+  }
+
+  function abrirEdicion(m) {
+    setForm({
+      type: m.type,
+      investor_id: m.investor?.id ?? '',
+      from_project_id: m.origen?.id ?? '',
+      project_id: m.project?.id ?? '',
+      movement_date: m.movement_date,
+      amount: String(m.amount),
+      currency: m.currency,
+      fx_usd: m.fx_usd == null ? '' : String(m.fx_usd),
+      concept: m.concept ?? '',
+    })
+    setAbierto(m)
   }
 
   async function anular(id) {
@@ -115,7 +132,7 @@ export default function Capital() {
         subtitle="Libro mayor único: aportes, retiros, profit, reinversiones y transferencias. Nada se borra; se anula."
         action={
           canManage && (
-            <button className="btn btn-primary" onClick={() => setOpen(true)}>
+            <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>
               + Nuevo movimiento
             </button>
           )
@@ -148,11 +165,16 @@ export default function Capital() {
                   {m.status === 'confirmado' ? 'Confirmado' : 'Anulado'}
                 </Badge>
               </td>
-              <td>
+              <td className="nowrap">
                 {canManage && m.status === 'confirmado' && (
-                  <button className="icon-btn" title="Anular" onClick={() => anular(m.id)}>
-                    Anular
-                  </button>
+                  <>
+                    <button className="icon-btn" onClick={() => abrirEdicion(m)}>
+                      Editar
+                    </button>
+                    <button className="icon-btn" title="Anular" onClick={() => anular(m.id)}>
+                      Anular
+                    </button>
+                  </>
                 )}
               </td>
             </tr>
@@ -160,10 +182,11 @@ export default function Capital() {
         />
       )}
 
-      {open && (
+      {abierto && (
         <Drawer
-          title="Nuevo movimiento de capital"
-          onClose={() => setOpen(false)}
+          title={abierto === 'nuevo' ? 'Nuevo movimiento de capital' : 'Editar movimiento'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
           onSubmit={save}
           submitting={saving}
         >

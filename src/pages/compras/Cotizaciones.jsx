@@ -3,6 +3,7 @@ import { useAsync } from '../../lib/useAsync'
 import {
   listQuotes,
   createQuote,
+  updateQuote,
   listItemsPlain,
   listSuppliers,
   listProjects,
@@ -28,7 +29,7 @@ const EMPTY = {
 
 export default function Cotizaciones() {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -55,7 +56,7 @@ export default function Cotizaciones() {
     setSaving(true)
     setFormError(null)
     try {
-      await createQuote({
+      const payload = {
         item_id: form.item_id,
         supplier_id: form.supplier_id,
         project_id: form.project_id || null,
@@ -67,9 +68,11 @@ export default function Cotizaciones() {
         payment_terms: form.payment_terms || null,
         valid_until: form.valid_until || null,
         notes: form.notes || null,
-      })
+      }
+      if (abierto === 'nuevo') await createQuote(payload)
+      else await updateQuote(abierto.id, payload)
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       quotes.reload()
     } catch (err) {
       setFormError(err.message)
@@ -87,7 +90,7 @@ export default function Cotizaciones() {
         subtitle="El histórico no se borra: es lo que permite comparar presupuesto contra cotización contra compra real."
         action={
           canManage && (
-            <button className="btn btn-primary" onClick={() => setOpen(true)}>
+            <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>
               + Nueva cotización
             </button>
           )
@@ -109,6 +112,7 @@ export default function Cotizaciones() {
             { key: 'usd', label: 'USD/un', num: true },
             { key: 'terms', label: 'Pago' },
             { key: 'valid', label: 'Validez' },
+            { key: 'act', label: '' },
           ]}
           rows={quotes.data ?? []}
           empty="Todavía no hay cotizaciones registradas."
@@ -134,14 +138,45 @@ export default function Cotizaciones() {
                       : date(q.valid_until)
                     : '—'}
                 </td>
+                <td className="nowrap">
+                  {canManage && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        setForm({
+                          item_id: q.item?.id ?? '',
+                          supplier_id: q.supplier?.id ?? '',
+                          project_id: q.project_id ?? '',
+                          quote_date: q.quote_date,
+                          qty: String(q.qty),
+                          unit_price: String(q.unit_price),
+                          currency: q.currency,
+                          fx_usd: q.fx_usd == null ? '' : String(q.fx_usd),
+                          payment_terms: q.payment_terms ?? '',
+                          valid_until: q.valid_until ?? '',
+                          notes: q.notes ?? '',
+                        })
+                        setAbierto(q)
+                      }}
+                    >
+                      Editar
+                    </button>
+                  )}
+                </td>
               </tr>
             )
           }}
         />
       )}
 
-      {open && (
-        <Drawer title="Nueva cotización" onClose={() => setOpen(false)} onSubmit={save} submitting={saving}>
+      {abierto && (
+        <Drawer
+          title={abierto === 'nuevo' ? 'Nueva cotización' : 'Editar cotización'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
+          onSubmit={save}
+          submitting={saving}
+        >
           {formError && <ErrorBox message={formError} />}
 
           <Field label="Item">

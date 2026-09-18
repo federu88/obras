@@ -118,7 +118,7 @@ function Gantt({ tasks }) {
 
 export default function Cronograma({ projectId }) {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -141,8 +141,7 @@ export default function Cronograma({ projectId }) {
     setSaving(true)
     setFormError(null)
     try {
-      await createTask({
-        project_id: projectId,
+      const payload = {
         category: form.category || null,
         name: form.name,
         planned_start: form.planned_start || null,
@@ -150,10 +149,18 @@ export default function Cronograma({ projectId }) {
         actual_start: form.actual_start || null,
         actual_finish: form.actual_finish || null,
         responsible: form.responsible || null,
-        sort_order: (tasks.data?.length ?? 0) + 1,
-      })
+      }
+      if (abierto === 'nuevo') {
+        await createTask({
+          ...payload,
+          project_id: projectId,
+          sort_order: (tasks.data?.length ?? 0) + 1,
+        })
+      } else {
+        await updateTask(abierto.task_id, payload)
+      }
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       reload()
     } catch (err) {
       setFormError(err.message)
@@ -178,7 +185,7 @@ export default function Cronograma({ projectId }) {
           Días hábiles con feriados argentinos. El fin planificado se calcula solo.
         </p>
         {canManage && (
-          <button className="btn btn-primary" onClick={() => setOpen(true)}>+ Actividad</button>
+          <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>+ Actividad</button>
         )}
       </div>
 
@@ -271,7 +278,26 @@ export default function Cronograma({ projectId }) {
                 <td>
                   <Badge tone={STATUS[t.status]?.[1]}>{STATUS[t.status]?.[0] ?? t.status}</Badge>
                 </td>
-                <td>
+                <td className="nowrap">
+                  {canManage && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        setForm({
+                          category: t.category ?? '',
+                          name: t.name ?? '',
+                          planned_start: t.planned_start ?? '',
+                          planned_days: t.planned_days == null ? '' : String(t.planned_days),
+                          actual_start: t.actual_start ?? '',
+                          actual_finish: t.actual_finish ?? '',
+                          responsible: t.responsible ?? '',
+                        })
+                        setAbierto(t)
+                      }}
+                    >
+                      Editar
+                    </button>
+                  )}
                   {canManage && !t.actual_start && (
                     <button className="icon-btn" onClick={() => marcar(t, { actual_start: hoy })}>
                       Iniciar
@@ -323,8 +349,14 @@ export default function Cronograma({ projectId }) {
         </>
       )}
 
-      {open && (
-        <Drawer title="Nueva actividad" onClose={() => setOpen(false)} onSubmit={save} submitting={saving}>
+      {abierto && (
+        <Drawer
+          title={abierto === 'nuevo' ? 'Nueva actividad' : 'Editar actividad'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
+          onSubmit={save}
+          submitting={saving}
+        >
           {formError && <ErrorBox message={formError} />}
 
           <Field label="Categoría" hint="Ej: Tareas preliminares, Estructura, Terminaciones">

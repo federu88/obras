@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAsync } from '../../lib/useAsync'
-import { listRevenues, createRevenue, fxRateAt } from '../../lib/queries'
+import { listRevenues, createRevenue, updateRevenue, fxRateAt } from '../../lib/queries'
 import { usd, date } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { Table, Loading, ErrorBox, Badge, Drawer, Field } from '../../components/ui'
@@ -18,7 +18,7 @@ const EMPTY = {
 
 export default function Ingresos({ projectId, onChange }) {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -41,17 +41,18 @@ export default function Ingresos({ projectId, onChange }) {
     setSaving(true)
     setFormError(null)
     try {
-      await createRevenue({
-        project_id: projectId,
+      const payload = {
         kind: form.kind,
         description: form.description || null,
         revenue_date: form.revenue_date,
         amount: Number(form.amount),
         currency: form.currency,
         fx_usd: form.currency === 'ARS' ? Number(form.fx_usd) : null,
-      })
+      }
+      if (abierto === 'nuevo') await createRevenue({ ...payload, project_id: projectId })
+      else await updateRevenue(abierto.id, payload)
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       revenues.reload()
       onChange?.()
     } catch (err) {
@@ -72,7 +73,7 @@ export default function Ingresos({ projectId, onChange }) {
           no un ingreso.
         </p>
         {canManage && (
-          <button className="btn btn-primary" onClick={() => setOpen(true)}>+ Nuevo ingreso</button>
+          <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>+ Nuevo ingreso</button>
         )}
       </div>
 
@@ -89,6 +90,7 @@ export default function Ingresos({ projectId, onChange }) {
               { key: 'desc', label: 'Detalle' },
               { key: 'amount', label: 'Importe', num: true },
               { key: 'usd', label: 'USD', num: true },
+              { key: 'act', label: '' },
             ]}
             rows={rows}
             empty="Todavía no hay ingresos registrados."
@@ -101,6 +103,26 @@ export default function Ingresos({ projectId, onChange }) {
                   {new Intl.NumberFormat('es-AR').format(r.amount)} {r.currency}
                 </td>
                 <td className="num">{usd(r.amount_usd)}</td>
+                <td className="nowrap">
+                  {canManage && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        setForm({
+                          kind: r.kind,
+                          description: r.description ?? '',
+                          revenue_date: r.revenue_date,
+                          amount: String(r.amount),
+                          currency: r.currency,
+                          fx_usd: r.fx_usd == null ? '' : String(r.fx_usd),
+                        })
+                        setAbierto(r)
+                      }}
+                    >
+                      Editar
+                    </button>
+                  )}
+                </td>
               </tr>
             )}
           />
@@ -113,8 +135,14 @@ export default function Ingresos({ projectId, onChange }) {
         </>
       )}
 
-      {open && (
-        <Drawer title="Nuevo ingreso" onClose={() => setOpen(false)} onSubmit={save} submitting={saving}>
+      {abierto && (
+        <Drawer
+          title={abierto === 'nuevo' ? 'Nuevo ingreso' : 'Editar ingreso'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
+          onSubmit={save}
+          submitting={saving}
+        >
           {formError && <ErrorBox message={formError} />}
 
           <Field label="Tipo">

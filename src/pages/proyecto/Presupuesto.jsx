@@ -4,6 +4,8 @@ import {
   listBudgetLines,
   createBudgetLine,
   deleteBudgetLine,
+  updateBudgetLine,
+  getBudgetLine,
   listCostCategories,
   listItemsPlain,
 } from '../../lib/queries'
@@ -18,6 +20,8 @@ const EMPTY = {
   unit: 'un',
   qty_original: '',
   price_original_usd: '',
+  qty_forecast: '',
+  price_forecast_usd: '',
 }
 
 function Var({ actual, baseline }) {
@@ -34,7 +38,7 @@ function Var({ actual, baseline }) {
 
 export default function Presupuesto({ projectId, onChange }) {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -49,17 +53,21 @@ export default function Presupuesto({ projectId, onChange }) {
     setSaving(true)
     setFormError(null)
     try {
-      await createBudgetLine({
-        project_id: projectId,
+      const payload = {
         category_id: form.category_id || null,
         item_id: form.item_id || null,
         description: form.description,
         unit: form.unit || 'un',
         qty_original: Number(form.qty_original || 0),
         price_original_usd: Number(form.price_original_usd || 0),
-      })
+        qty_forecast: form.qty_forecast === '' ? null : Number(form.qty_forecast),
+        price_forecast_usd:
+          form.price_forecast_usd === '' ? null : Number(form.price_forecast_usd),
+      }
+      if (abierto === 'nuevo') await createBudgetLine({ ...payload, project_id: projectId })
+      else await updateBudgetLine(abierto.budget_line_id, payload)
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       lines.reload()
       onChange?.()
     } catch (err) {
@@ -67,6 +75,21 @@ export default function Presupuesto({ projectId, onChange }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function abrirEdicion(r) {
+    const full = await getBudgetLine(r.budget_line_id)
+    setForm({
+      category_id: full.category_id ?? '',
+      item_id: full.item_id ?? '',
+      description: full.description ?? '',
+      unit: full.unit ?? 'un',
+      qty_original: full.qty_original ?? '',
+      price_original_usd: full.price_original_usd ?? '',
+      qty_forecast: full.qty_forecast ?? '',
+      price_forecast_usd: full.price_forecast_usd ?? '',
+    })
+    setAbierto(r)
   }
 
   async function remove(id) {
@@ -105,7 +128,7 @@ export default function Presupuesto({ projectId, onChange }) {
           El budget original queda congelado. El forecast es la estimación de hoy.
         </p>
         {canManage && (
-          <button className="btn btn-primary" onClick={() => setOpen(true)}>
+          <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>
             + Línea de presupuesto
           </button>
         )}
@@ -131,11 +154,16 @@ export default function Presupuesto({ projectId, onChange }) {
                 <td className="num">{usd(r.total_forecast_usd)}</td>
                 <td className="num">{usd(r.actual_usd)}</td>
                 <td className="num"><Var actual={r.actual_usd} baseline={r.total_original_usd} /></td>
-                <td>
+                <td className="nowrap">
                   {canManage && (
-                    <button className="icon-btn" onClick={() => remove(r.budget_line_id)}>
-                      Borrar
-                    </button>
+                    <>
+                      <button className="icon-btn" onClick={() => abrirEdicion(r)}>
+                        Editar
+                      </button>
+                      <button className="icon-btn" onClick={() => remove(r.budget_line_id)}>
+                        Borrar
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>
@@ -173,10 +201,11 @@ export default function Presupuesto({ projectId, onChange }) {
         </>
       )}
 
-      {open && (
+      {abierto && (
         <Drawer
-          title="Nueva línea de presupuesto"
-          onClose={() => setOpen(false)}
+          title={abierto === 'nuevo' ? 'Nueva línea de presupuesto' : 'Editar línea'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
           onSubmit={save}
           submitting={saving}
         >
@@ -231,6 +260,20 @@ export default function Presupuesto({ projectId, onChange }) {
 
           <Field label="Precio unitario (USD)">
             <input type="number" step="0.0001" min="0" required value={form.price_original_usd} onChange={set('price_original_usd')} />
+          </Field>
+
+          <div className="notice">
+            Lo de arriba es el <strong>budget original</strong> y queda congelado. Lo de
+            abajo es el <strong>forecast</strong>: la estimación de hoy. Si lo dejás
+            vacío, el forecast es igual al original.
+          </div>
+
+          <Field label="Cantidad estimada hoy">
+            <input type="number" step="0.0001" min="0" value={form.qty_forecast} onChange={set('qty_forecast')} />
+          </Field>
+
+          <Field label="Precio unitario estimado hoy (USD)">
+            <input type="number" step="0.0001" min="0" value={form.price_forecast_usd} onChange={set('price_forecast_usd')} />
           </Field>
         </Drawer>
       )}

@@ -453,3 +453,41 @@ export const listGastosRecientes = (projectId, limit = 40) =>
     .order('created_at', { ascending: false })
     .limit(limit)
     .then(unwrap)
+
+/* --- Actualizaciones ------------------------------------------------------- */
+
+export const updateInvestor = (id, patch) =>
+  supabase.from('investors').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const updateItem = (id, patch) =>
+  supabase.from('items').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const updateCapitalMovement = (id, patch) =>
+  supabase
+    .from('capital_movements')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single()
+    .then(unwrap)
+
+export const updateRevenue = (id, patch) =>
+  supabase.from('revenues').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const updateCashAccount = (id, patch) =>
+  supabase.from('cash_accounts').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const updateFxRate = (id, patch) =>
+  supabase.from('fx_rates').update(patch).eq('id', id).select().single().then(unwrap)
+
+/** El item crudo. item_prices no trae category_id, y editando desde la vista
+ *  se perdería la categoría. */
+export const getItem = (id) =>
+  supabase.from('items').select('*').eq('id', id).single().then(unwrap)
+
+/** La línea cruda. budget_variance no trae item_id, category_id ni forecast. */
+export const getBudgetLine = (id) =>
+  supabase.from('budget_lines').select('*').eq('id', id).single().then(unwrap)
+
+export const updateQuote = (id, patch) =>
+  supabase.from('supplier_quotes').update(patch).eq('id', id).select().single().then(unwrap)

@@ -3,6 +3,8 @@ import { useAsync } from '../../lib/useAsync'
 import {
   listItems,
   createItem,
+  updateItem,
+  getItem,
   listCostCategories,
   suggestItemCode,
   listSupplierPrices,
@@ -19,7 +21,7 @@ const EMPTY = { code: '', description: '', category_id: '', unit: 'un', spec: ''
 
 export default function Items() {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -52,15 +54,17 @@ export default function Items() {
     setSaving(true)
     setFormError(null)
     try {
-      await createItem({
+      const payload = {
         code: form.code,
         description: form.description,
         category_id: form.category_id || null,
         unit: form.unit,
         spec: form.spec || null,
-      })
+      }
+      if (abierto === 'nuevo') await createItem(payload)
+      else await updateItem(abierto.item_id, payload)
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       items.reload()
     } catch (err) {
       setFormError(err.message)
@@ -76,7 +80,7 @@ export default function Items() {
         subtitle="Catálogo central, reutilizable entre proyectos. Guarda el historial de precios."
         action={
           canManage && (
-            <button className="btn btn-primary" onClick={() => setOpen(true)}>+ Nuevo item</button>
+            <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>+ Nuevo item</button>
           )
         }
       />
@@ -96,6 +100,7 @@ export default function Items() {
             { key: 'bought', label: 'Últ. comprado', num: true },
             { key: 'avg', label: 'Promedio', num: true },
             { key: 'n', label: 'Cotiz.', num: true },
+            { key: 'act', label: '' },
           ]}
           rows={items.data ?? []}
           empty="Todavía no hay items en el catálogo."
@@ -113,6 +118,27 @@ export default function Items() {
               <td className="num">{usd(i.ultimo_precio_comprado_usd)}</td>
               <td className="num">{usd(i.precio_promedio_usd)}</td>
               <td className="num">{i.cotizaciones}</td>
+              <td className="nowrap">
+                {canManage && (
+                  <button
+                    className="icon-btn"
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      const full = await getItem(i.item_id)
+                      setForm({
+                        code: full.code ?? '',
+                        description: full.description ?? '',
+                        category_id: full.category_id ?? '',
+                        unit: full.unit ?? 'un',
+                        spec: full.spec ?? '',
+                      })
+                      setAbierto(i)
+                    }}
+                  >
+                    Editar
+                  </button>
+                )}
+              </td>
             </tr>
           )}
         />
@@ -151,8 +177,14 @@ export default function Items() {
         </section>
       )}
 
-      {open && (
-        <Drawer title="Nuevo item" onClose={() => setOpen(false)} onSubmit={save} submitting={saving}>
+      {abierto && (
+        <Drawer
+          title={abierto === 'nuevo' ? 'Nuevo item' : 'Editar item'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
+          onSubmit={save}
+          submitting={saving}
+        >
           {formError && <ErrorBox message={formError} />}
 
           <Field label="Categoría">

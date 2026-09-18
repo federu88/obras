@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAsync } from '../../lib/useAsync'
-import { listSuppliers, createSupplier } from '../../lib/queries'
+import { listSuppliers, createSupplier, updateSupplier } from '../../lib/queries'
 import { useAuth } from '../../context/AuthContext'
 import { PageHead, Table, Loading, ErrorBox, Badge, Drawer, Field } from '../../components/ui'
 
@@ -8,7 +8,7 @@ const EMPTY = { name: '', contact_name: '', phone: '', email: '', notes: '' }
 
 export default function Proveedores() {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -20,11 +20,13 @@ export default function Proveedores() {
     setSaving(true)
     setFormError(null)
     try {
-      await createSupplier(
-        Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v === '' ? null : v]))
+      const payload = Object.fromEntries(
+        Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
       )
+      if (abierto === 'nuevo') await createSupplier(payload)
+      else await updateSupplier(abierto.id, payload)
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       suppliers.reload()
     } catch (err) {
       setFormError(err.message)
@@ -40,7 +42,7 @@ export default function Proveedores() {
         subtitle="El teléfono va en su columna, no dentro del nombre."
         action={
           canManage && (
-            <button className="btn btn-primary" onClick={() => setOpen(true)}>
+            <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>
               + Nuevo proveedor
             </button>
           )
@@ -59,6 +61,7 @@ export default function Proveedores() {
             { key: 'phone', label: 'Teléfono' },
             { key: 'email', label: 'Email' },
             { key: 'state', label: 'Estado' },
+            { key: 'act', label: '' },
           ]}
           rows={suppliers.data ?? []}
           empty="Todavía no hay proveedores cargados."
@@ -73,13 +76,38 @@ export default function Proveedores() {
                   {s.is_active ? 'Activo' : 'Inactivo'}
                 </Badge>
               </td>
+              <td className="nowrap">
+                {canManage && (
+                  <button
+                    className="icon-btn"
+                    onClick={() => {
+                      setForm({
+                        name: s.name ?? '',
+                        contact_name: s.contact_name ?? '',
+                        phone: s.phone ?? '',
+                        email: s.email ?? '',
+                        notes: s.notes ?? '',
+                      })
+                      setAbierto(s)
+                    }}
+                  >
+                    Editar
+                  </button>
+                )}
+              </td>
             </tr>
           )}
         />
       )}
 
-      {open && (
-        <Drawer title="Nuevo proveedor" onClose={() => setOpen(false)} onSubmit={save} submitting={saving}>
+      {abierto && (
+        <Drawer
+          title={abierto === 'nuevo' ? 'Nuevo proveedor' : 'Editar proveedor'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
+          onSubmit={save}
+          submitting={saving}
+        >
           {formError && <ErrorBox message={formError} />}
           <Field label="Nombre" hint="Un nombre real, no “TBD” ni “estimado”.">
             <input required value={form.name} onChange={set('name')} />

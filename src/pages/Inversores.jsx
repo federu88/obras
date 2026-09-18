@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAsync } from '../lib/useAsync'
-import { listInvestorSummary, createInvestor } from '../lib/queries'
+import { listInvestorSummary, createInvestor, updateInvestor, getInvestor } from '../lib/queries'
 import { usd } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { PageHead, Table, Loading, ErrorBox, Badge, Drawer, Field } from '../components/ui'
@@ -10,13 +10,26 @@ const EMPTY = { name: '', email: '', phone: '', joined_on: '', notes: '' }
 
 export default function Inversores() {
   const { canManage } = useAuth()
-  const [open, setOpen] = useState(false)
+  /* null = cerrado · 'nuevo' = alta · objeto = edición */
+  const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
 
   const investors = useAsync(listInvestorSummary)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  async function abrirEdicion(id) {
+    const inv = await getInvestor(id)
+    setForm({
+      name: inv.name ?? '',
+      email: inv.email ?? '',
+      phone: inv.phone ?? '',
+      joined_on: inv.joined_on ?? '',
+      notes: inv.notes ?? '',
+    })
+    setAbierto(inv)
+  }
 
   async function save() {
     setSaving(true)
@@ -25,9 +38,10 @@ export default function Inversores() {
       const payload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
       )
-      await createInvestor(payload)
+      if (abierto === 'nuevo') await createInvestor(payload)
+      else await updateInvestor(abierto.id, payload)
       setForm(EMPTY)
-      setOpen(false)
+      setAbierto(null)
       investors.reload()
     } catch (err) {
       setFormError(err.message)
@@ -43,6 +57,7 @@ export default function Inversores() {
     { key: 'pend', label: 'Profit pendiente', num: true },
     { key: 'cobr', label: 'Profit cobrado', num: true },
     { key: 'proj', label: 'Proyectos', num: true },
+    { key: 'act', label: '' },
   ]
 
   return (
@@ -52,7 +67,7 @@ export default function Inversores() {
         subtitle="Posición consolidada de cada inversor. Calculada sobre el libro mayor de capital, no cargada a mano."
         action={
           canManage && (
-            <button className="btn btn-primary" onClick={() => setOpen(true)}>
+            <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>
               + Nuevo inversor
             </button>
           )
@@ -82,15 +97,23 @@ export default function Inversores() {
               <td className="num">{usd(i.profit_pendiente_usd)}</td>
               <td className="num">{usd(i.profit_cobrado_usd)}</td>
               <td className="num">{i.proyectos_activos}</td>
+              <td className="nowrap">
+                {canManage && (
+                  <button className="icon-btn" onClick={() => abrirEdicion(i.investor_id)}>
+                    Editar
+                  </button>
+                )}
+              </td>
             </tr>
           )}
         />
       )}
 
-      {open && (
+      {abierto && (
         <Drawer
-          title="Nuevo inversor"
-          onClose={() => setOpen(false)}
+          title={abierto === 'nuevo' ? 'Nuevo inversor' : 'Editar inversor'}
+          submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
+          onClose={() => setAbierto(null)}
           onSubmit={save}
           submitting={saving}
         >
