@@ -7,9 +7,10 @@ import { supabase } from './supabase'
  * 1435 en otro), que es el origen de que el presupuesto en USD no cierre.
  * Acá la cotización se trae sola de una fuente pública y queda con su fecha.
  *
- * Se usa el MEP (dólar bolsa), que es la referencia que ya venías usando, y el
- * valor de VENTA: es el precio al que habrías comprado los dólares, así que es
- * el que corresponde para valuar un gasto en pesos.
+ * Se usa el MEP (dólar bolsa) y el valor de COMPRA, que es el criterio que ya
+ * venías usando: la planilla de presupuesto divide los importes en pesos por
+ * la columna Compra de tu tabla de cotizaciones. Un solo criterio en todo el
+ * sistema, y es el tuyo.
  *
  * APIs públicas, gratuitas y sin credenciales:
  *   https://dolarapi.com/v1/dolares/bolsa                       (hoy)
@@ -59,10 +60,10 @@ export async function syncHoy() {
     const res = await fetch(HOY_URL)
     if (!res.ok) return null
     const json = await res.json()
-    const valor = Number(json?.venta)
+    const valor = Number(json?.compra)
     if (!valor || Number.isNaN(valor)) return null
 
-    await upsert(hoy, valor, 'MEP venta · dolarapi.com')
+    await upsert(hoy, valor, 'MEP compra · dolarapi.com')
     return valor
   } catch {
     return null
@@ -98,10 +99,10 @@ export async function backfill(dias = 90, onProgress) {
       const res = await fetch(`${HIST_URL}/${y}/${m}/${dd}`)
       if (!res.ok) continue
       const json = await res.json()
-      const valor = Number(json?.venta)
+      const valor = Number(json?.compra)
       if (!valor || Number.isNaN(valor)) continue
 
-      await upsert(fecha, valor, 'MEP venta · argentinadatos.com')
+      await upsert(fecha, valor, 'MEP compra · argentinadatos.com')
       cargadas++
     } catch {
       /* una fecha que falla no interrumpe el resto */

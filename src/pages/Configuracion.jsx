@@ -145,7 +145,7 @@ export default function Configuracion() {
           <div>
             <h2>Tipo de cambio</h2>
             <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Dólar MEP, valor de venta. Se trae solo al abrir la app.
+              Dólar MEP, valor de compra — el mismo criterio de tu planilla. Se trae solo al abrir la app.
             </p>
           </div>
           {canManage && (
