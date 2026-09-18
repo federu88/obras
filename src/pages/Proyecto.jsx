@@ -58,7 +58,9 @@ export default function Proyecto() {
   /* Avance económico: lo ejecutado sobre lo que se espera gastar.
      Es distinto del avance físico (días), que llega en Fase 5. */
   const avance = f.forecast_cost_usd > 0 ? f.actual_cost_usd / f.forecast_cost_usd : 0
-  const margen = f.revenue_target_usd > 0 ? f.forecast_profit_usd / f.revenue_target_usd : null
+  /* Los dos margenes vienen calculados de project_pnl, no se recalculan acá. */
+  const margenVenta = f.margin_on_revenue
+  const margenCosto = f.margin_on_cost
 
   return (
     <div>
@@ -100,7 +102,8 @@ export default function Proyecto() {
             <Kpi label="Ingresos" value={usd(f.revenue_usd)} hint="Realizados" />
             <Kpi label="Venta estimada" value={usd(f.revenue_target_usd)} />
             <Kpi label="Profit proyectado" value={usd(f.forecast_profit_usd)} hint="Neto de comisión" />
-            <Kpi label="Margen proyectado" value={margen == null ? null : pct(margen)} />
+            <Kpi label="Margen sobre venta" value={margenVenta == null ? null : pct(margenVenta)} />
+            <Kpi label="Margen sobre costo" value={margenCosto == null ? null : pct(margenCosto)} hint="Criterio del reparto" />
           </div>
 
           <section className="card" style={{ display: 'grid', gap: 14 }}>

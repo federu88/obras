@@ -14,11 +14,11 @@ import Cotizaciones from './pages/compras/Cotizaciones'
 import Ordenes from './pages/compras/Ordenes'
 import Cronogramas from './pages/Cronogramas'
 import Reportes from './pages/Reportes'
+import Configuracion from './pages/Configuracion'
 import Inversor from './pages/Inversor'
 import Caja from './pages/Caja'
 import Inversores from './pages/Inversores'
 import Capital from './pages/Capital'
-import Placeholder from './pages/Placeholder'
 
 /** Pantalla de arranque cuando todavía no hay proyecto de Supabase conectado. */
 function SetupRequired() {
@@ -96,16 +96,7 @@ export default function App() {
 
             <Route path="cronogramas" element={<Cronogramas />} />
             <Route path="reportes" element={<Reportes />} />
-            <Route
-              path="configuracion"
-              element={
-                <Placeholder
-                  title="Configuración"
-                  phase="Fase 1"
-                  detail="Usuarios, roles y cotizaciones de referencia."
-                />
-              }
-            />
+            <Route path="configuracion" element={<Configuracion />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

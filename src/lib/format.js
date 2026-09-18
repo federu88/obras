@@ -56,7 +56,17 @@ export function pct(value) {
  */
 export function date(value) {
   if (!value) return '—'
-  const d = value instanceof Date ? value : new Date(value)
+
+  /* Ojo con esto: `new Date('2026-09-18')` se interpreta como UTC medianoche,
+     y al mostrarlo en hora argentina (UTC−3) retrocede al día anterior. Toda
+     fecha sin hora se parsea como LOCAL para que el 18 se vea 18. */
+  const d =
+    value instanceof Date
+      ? value
+      : /^\d{4}-\d{2}-\d{2}$/.test(value)
+        ? new Date(`${value}T00:00:00`)
+        : new Date(value)
+
   return Number.isNaN(d.getTime()) ? '—' : DATE.format(d)
 }
 

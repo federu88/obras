@@ -15,7 +15,10 @@ export default function Pnl() {
   const forecastCost = sum(rows, 'forecast_cost_usd')
   const forecastProfit = sum(rows, 'forecast_profit_usd')
   const targetRevenue = sum(rows, 'revenue_target_usd')
-  const margen = targetRevenue > 0 ? forecastProfit / targetRevenue : null
+  const margenVenta = targetRevenue > 0 ? forecastProfit / targetRevenue : null
+  /* Margen sobre costo: es el criterio del reparto real. Mide cuánto rinde la
+     plata puesta, no cuánto queda de cada dólar vendido. */
+  const margenCosto = forecastCost > 0 ? forecastProfit / forecastCost : null
 
   return (
     <div style={{ display: 'grid', gap: 24 }}>
@@ -36,7 +39,8 @@ export default function Pnl() {
             <Kpi label="Costo actual" value={usd(actual)} hint="Recibido o pagado" />
             <Kpi label="Costo proyectado" value={usd(forecastCost)} />
             <Kpi label="Profit proyectado" value={usd(forecastProfit)} hint="Neto de comisión" />
-            <Kpi label="Margen proyectado" value={margen == null ? null : pct(margen)} />
+            <Kpi label="Margen sobre venta" value={margenVenta == null ? null : pct(margenVenta)} />
+            <Kpi label="Margen sobre costo" value={margenCosto == null ? null : pct(margenCosto)} hint="Criterio del reparto" />
           </div>
 
           <Table

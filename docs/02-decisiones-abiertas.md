@@ -8,11 +8,33 @@ afectan el esquema de fases posteriores y conviene cerrarlos antes de esa fase.
 | 1 | Cuánto aportó cada uno de los 5 inversores | Sin dato | ⚠️ Fase 2 |
 | 2 | FX: ¿cotización de la operación real o MEP de referencia? | **Supuesto tomado** | Fase 3 |
 | 3 | Importes negativos (−41.110, −200.000): ¿notas de crédito o error? | Sin definir | Fase 4 |
-| 4 | Honorarios del arquitecto: ¿USD 8.000 fijos o un %? | **Supuesto tomado** | ⚠️ Fase 3 |
-| 5 | El lote: ¿costo del proyecto o aporte de capital en especie? | Sin definir | ⚠️ Fase 2 |
+| 4 | Honorarios del arquitecto: ¿USD 8.000 fijos o un %? | **Resuelto**: 8.000 fijos, son costo | — |
+| 5 | El lote: ¿costo del proyecto o aporte de capital en especie? | **Resuelto**: aporte en especie con participación | — |
 | 6 | Obras 84 y 583: ¿migrar como histórico o solo referencia? | Recomendación dada | Fase 3 |
 | 7 | Préstamos al personal: ¿cuenta a cobrar o fuera del sistema? | Sin definir | Fase 3 |
 | 8 | Gastos de escritura y venta: monto o % | Sin dato | Fase 3 |
+
+## Resuelto por la planilla de reparto (2026-09-18)
+
+`REPARTO UTILIDAD CASAS 1.xlsx` confirmo la logica de distribucion y cerro dos
+decisiones:
+
+- **Participacion = aporte / aporte total**, y **utilidad de cada uno = utilidad
+  total x participacion**. Es exactamente lo que ya hacia `investor_report`.
+- **Los 8.000 de arquitectura y direccion son COSTO del proyecto**, no una
+  distribucion. El usuario confirmo que Ale y Dani NO los cobran ademas de su
+  participacion del 48,67%. Queda por definir quien los cobra, lo que importa
+  para el cashflow pero no para el reparto.
+- **El lote entra como aportante**: "San Ramon" figura con 35.375 y recibe
+  14,95% de participacion.
+- **La comision inmobiliaria es 2,5%**, no 4%. El 4% era un default sin dato.
+  Corregido en `0011_reparto.sql`.
+- **El margen se mide sobre el COSTO** (utilidad / costo estimado = 21,08%), no
+  sobre la venta. Ahora estan los dos indicadores, con nombres distintos.
+
+Inconsistencias detectadas en ese archivo, sin resolver:
+- La comision figura 2,5% en Hoja1 y 2% en Hoja3.
+- El FX es 1435 ahi y 1400 en el otro archivo, los dos escritos a mano.
 
 ## Supuestos tomados para no frenar la Fase 1
 

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { syncHoy } from '../lib/fx'
 
 const AuthContext = createContext(null)
 
@@ -46,6 +47,10 @@ export function AuthProvider({ children }) {
         if (error) console.error('No se pudo cargar el perfil:', error.message)
         setProfile(data ?? null)
         setLoading(false)
+
+        /* Trae la cotización del día si falta. Es de fondo y silencioso: si
+           falla, o si el rol no puede escribir, no pasa nada. */
+        if (data?.role === 'admin' || data?.role === 'manager') syncHoy()
       })
 
     return () => {
