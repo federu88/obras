@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAsync } from '../lib/useAsync'
 import { listProjects, createProject, listProjectCapital } from '../lib/queries'
 import { usd, date } from '../lib/format'
@@ -125,7 +126,9 @@ export default function Proyectos({ filter }) {
           }
           renderRow={(p) => (
             <tr key={p.id}>
-              <td style={{ fontWeight: 500 }}>{p.code}</td>
+              <td style={{ fontWeight: 500 }}>
+                <Link to={`/proyectos/${p.id}`} style={{ color: 'var(--accent)' }}>{p.code}</Link>
+              </td>
               <td>
                 {p.name}
                 {p.is_demo && <> <span className="tag-demo">demo</span></>}

@@ -5,6 +5,9 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Proyectos from './pages/Proyectos'
+import Proyecto from './pages/Proyecto'
+import Pnl from './pages/Pnl'
+import Caja from './pages/Caja'
 import Inversores from './pages/Inversores'
 import Capital from './pages/Capital'
 import Placeholder from './pages/Placeholder'
@@ -77,14 +80,15 @@ export default function App() {
             <Route path="proyectos" element={<Proyectos />} />
             <Route path="proyectos/activos" element={<Proyectos filter="activos" />} />
             <Route path="proyectos/terminados" element={<Proyectos filter="terminados" />} />
+            <Route path="proyectos/:id" element={<Proyecto />} />
 
             <Route path="inversores" element={<Inversores />} />
 
             <Route path="finanzas" element={<Navigate to="/finanzas/capital" replace />} />
             <Route path="finanzas/cashflow" element={soon('Cashflow', 'finanzas')} />
-            <Route path="finanzas/pnl" element={soon('P&L', 'finanzas')} />
+            <Route path="finanzas/pnl" element={<Pnl />} />
             <Route path="finanzas/capital" element={<Capital />} />
-            <Route path="finanzas/caja" element={soon('Caja y cambios', 'finanzas')} />
+            <Route path="finanzas/caja" element={<Caja />} />
 
             <Route path="compras" element={<Navigate to="/compras/items" replace />} />
             <Route path="compras/items" element={soon('Items', 'compras')} />
