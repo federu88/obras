@@ -4,7 +4,7 @@ import {
   listProjects,
   listCostCategories,
   listSuppliers,
-  listItemsPlain,
+  listItems,
   listCashBalances,
   listCashAccounts,
   createExpense,
@@ -56,7 +56,7 @@ export default function DiaADia() {
 
   const categories = useAsync(listCostCategories)
   const suppliers = useAsync(listSuppliers)
-  const items = useAsync(listItemsPlain)
+  const items = useAsync(listItems)
   const balances = useAsync(listCashBalances)
   const accounts = useAsync(listCashAccounts)
   const gastos = useAsync(
@@ -79,6 +79,9 @@ export default function DiaADia() {
     amount: '',
     currency: 'ARS',
   })
+  /* Precio de referencia del item elegido. Se guarda aparte del importe para
+     poder mostrar de dónde salió y si todavía no fue corregido. */
+  const [sugerido, setSugerido] = useState(null)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState(null)
   const conceptoRef = useRef(null)
@@ -114,6 +117,7 @@ export default function DiaADia() {
       /* Se conservan fecha, categoría y proveedor: en una jornada se cargan
          varios gastos del mismo rubro y el mismo día. */
       setG((f) => ({ ...f, description: '', amount: '', item_id: '' }))
+      setSugerido(null)
       conceptoRef.current?.focus()
       gastos.reload()
       mensual.reload()
@@ -160,6 +164,11 @@ export default function DiaADia() {
   const cajaUsd = (balances.data ?? []).filter((b) => b.currency === 'USD')
   const totalArs = cajaArs.reduce((a, b) => a + Number(b.balance ?? 0), 0)
   const totalUsd = cajaUsd.reduce((a, b) => a + Number(b.balance ?? 0), 0)
+
+  /* Si la migración de tipos todavía no corrió, `kind` no existe en ninguna
+     fila: en ese caso no se filtra, para no dejar el selector vacío. */
+  const hayTipos = (items.data ?? []).some((i) => i.kind)
+  const itemsDelTipo = (items.data ?? []).filter((i) => !hayTipos || i.kind === g.kind)
 
   const cuentasArs = (accounts.data ?? []).filter((a) => a.currency === 'ARS')
   const cuentasUsd = (accounts.data ?? []).filter((a) => a.currency === 'USD')
@@ -261,25 +270,51 @@ export default function DiaADia() {
               <label>Item del catálogo</label>
               <select
                 value={g.item_id}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const item_id = e.target.value
-                  const it = (items.data ?? []).find((i) => i.id === item_id)
-                  /* Elegir el item completa concepto y categoría, que es lo que
-                     ahorra tipear. El concepto queda editable para el detalle. */
+                  const it = (items.data ?? []).find((i) => i.item_id === item_id)
+                  if (!it) {
+                    setSugerido(null)
+                    setG((f) => ({ ...f, item_id: '' }))
+                    return
+                  }
+
+                  /* Referencia: lo último que se pagó vale más que un promedio
+                     o que una cotización sin cerrar. */
+                  const ref =
+                    it.ultimo_precio_comprado_usd != null
+                      ? { usd: Number(it.ultimo_precio_comprado_usd), origen: 'última compra' }
+                      : it.ultimo_precio_cotizado_usd != null
+                        ? { usd: Number(it.ultimo_precio_cotizado_usd), origen: 'última cotización' }
+                        : it.precio_promedio_usd != null
+                          ? { usd: Number(it.precio_promedio_usd), origen: 'promedio histórico' }
+                          : null
+
+                  let monto = ''
+                  if (ref) {
+                    if (g.currency === 'USD') monto = String(Math.round(ref.usd * 100) / 100)
+                    else {
+                      const fx = await fxRateAt(g.expense_date)
+                      if (fx) monto = String(Math.round(ref.usd * Number(fx)))
+                    }
+                  }
+
+                  setSugerido(ref ? { ...ref, aplicado: Boolean(monto) } : null)
                   setG((f) => ({
                     ...f,
                     item_id,
-                    description: it ? it.description : f.description,
-                    category_id: it?.category_id ?? f.category_id,
+                    description: it.description,
+                    category_id: it.category_id ?? f.category_id,
+                    amount: monto || f.amount,
                   }))
                 }}
               >
                 <option value="">Sin item — escribir a mano</option>
-                {(items.data ?? [])
-                  .filter((i) => i.kind === g.kind)
-                  .map((i) => (
-                    <option key={i.id} value={i.id}>{i.code} · {i.description}</option>
-                  ))}
+                {itemsDelTipo.map((i) => (
+                  <option key={i.item_id} value={i.item_id}>
+                    {i.code} · {i.description}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -315,14 +350,29 @@ export default function DiaADia() {
             </div>
 
             <div className="field">
-              <label>Importe</label>
+              <label>
+                Importe
+                {sugerido?.aplicado && (
+                  <span style={{ color: 'var(--warning)', fontWeight: 600 }}> · sugerido</span>
+                )}
+              </label>
               <input
                 type="number"
                 step="0.01"
                 min="0.01"
                 required
                 value={g.amount}
-                onChange={set('amount')}
+                onChange={(e) => {
+                  /* Apenas lo toca deja de ser una sugerencia: pasa a ser lo
+                     que realmente gastó. */
+                  setSugerido((s) => (s ? { ...s, aplicado: false } : s))
+                  setG((f) => ({ ...f, amount: e.target.value }))
+                }}
+                style={
+                  sugerido?.aplicado
+                    ? { borderColor: 'var(--warning)', background: 'var(--warning-soft)' }
+                    : undefined
+                }
               />
             </div>
 
@@ -340,10 +390,11 @@ export default function DiaADia() {
           </div>
 
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
-            Elegir un item del catálogo completa el concepto y la categoría. Si no
-            está en el catálogo, dejá el item vacío y escribilo a mano. La cotización
-            se aplica sola según la fecha, y al guardar se conservan fecha, tipo,
-            categoría y proveedor, para encadenar varios seguidos.
+            Elegir un item del catálogo completa el concepto, la categoría y trae el
+            <strong> precio de referencia</strong>
+            {sugerido ? ` (${sugerido.origen}: ${usd(sugerido.usd)} por unidad)` : ''}. Ese
+            importe queda marcado en amarillo hasta que lo pises con lo que gastaste de
+            verdad. Si el item no está en el catálogo, dejalo vacío y escribí a mano.
           </p>
         </form>
       )}
