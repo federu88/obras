@@ -12,6 +12,7 @@ import Items from './pages/compras/Items'
 import Proveedores from './pages/compras/Proveedores'
 import Cotizaciones from './pages/compras/Cotizaciones'
 import Ordenes from './pages/compras/Ordenes'
+import Cronogramas from './pages/Cronogramas'
 import Caja from './pages/Caja'
 import Inversores from './pages/Inversores'
 import Capital from './pages/Capital'
@@ -62,7 +63,6 @@ function Protected() {
 }
 
 const SOON = {
-  cronogramas: ['Fase 5', 'Gantt con plan vs real y desvíos de plazo.'],
   reportes: ['Fase 7', 'Reportes por inversor, por proyecto y consolidado.'],
 }
 
@@ -99,7 +99,7 @@ export default function App() {
             <Route path="compras/cotizaciones" element={<Cotizaciones />} />
             <Route path="compras/ordenes" element={<Ordenes />} />
 
-            <Route path="cronogramas" element={soon('Cronogramas', 'cronogramas')} />
+            <Route path="cronogramas" element={<Cronogramas />} />
             <Route path="reportes" element={soon('Reportes', 'reportes')} />
             <Route
               path="configuracion"

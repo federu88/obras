@@ -8,6 +8,7 @@ import Presupuesto from './proyecto/Presupuesto'
 import Gastos from './proyecto/Gastos'
 import Ingresos from './proyecto/Ingresos'
 import Desvios from './proyecto/Desvios'
+import Cronograma from './proyecto/Cronograma'
 
 const STATUS = {
   idea: 'Idea',
@@ -25,6 +26,7 @@ const TABS = [
   ['gastos', 'Gastos'],
   ['ingresos', 'Ingresos'],
   ['desvios', 'Desvíos'],
+  ['cronograma', 'Cronograma'],
 ]
 
 /** Desvío contra el budget original, con signo y color. Un sobrecosto es malo. */
@@ -158,6 +160,7 @@ export default function Proyecto() {
       {tab === 'gastos' && <Gastos projectId={id} onChange={pnl.reload} />}
       {tab === 'ingresos' && <Ingresos projectId={id} onChange={pnl.reload} />}
       {tab === 'desvios' && <Desvios projectId={id} />}
+      {tab === 'cronograma' && <Cronograma projectId={id} />}
     </div>
   )
 }

@@ -315,3 +315,50 @@ export const listVarianceByCategory = (projectId) =>
     .eq('project_id', projectId)
     .order('categoria')
     .then(unwrap)
+
+/* --- Cronograma ----------------------------------------------------------- */
+
+export const listTasks = (projectId) =>
+  supabase
+    .from('task_schedule')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('sort_order')
+    .then(unwrap)
+
+export const createTask = (payload) =>
+  supabase.from('tasks').insert(payload).select().single().then(unwrap)
+
+export const updateTask = (id, patch) =>
+  supabase.from('tasks').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const deleteTask = (id) =>
+  supabase.from('tasks').delete().eq('id', id).then(unwrap)
+
+export const getProjectProgress = (projectId) =>
+  supabase.from('project_progress').select('*').eq('project_id', projectId).single().then(unwrap)
+
+export const listProjectProgress = () =>
+  supabase.from('project_progress').select('*').order('code').then(unwrap)
+
+export const listScheduleAlerts = (projectId) => {
+  let q = supabase.from('schedule_alerts').select('*').order('planned_finish')
+  if (projectId) q = q.eq('project_id', projectId)
+  return q.then(unwrap)
+}
+
+export const listDependencyImpact = (projectId) =>
+  supabase
+    .from('dependency_impact')
+    .select('*')
+    .eq('project_id', projectId)
+    .then(unwrap)
+
+export const listTaskDependencies = (projectId) =>
+  supabase
+    .from('task_dependencies')
+    .select('task_id, depends_on_id, lag_days, task:tasks!task_dependencies_task_id_fkey ( project_id )')
+    .then(unwrap)
+
+export const createTaskDependency = (payload) =>
+  supabase.from('task_dependencies').insert(payload).select().single().then(unwrap)
