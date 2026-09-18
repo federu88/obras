@@ -4,6 +4,9 @@ import { isSupabaseConfigured } from './lib/supabase'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Proyectos from './pages/Proyectos'
+import Inversores from './pages/Inversores'
+import Capital from './pages/Capital'
 import Placeholder from './pages/Placeholder'
 
 /** Pantalla de arranque cuando todavía no hay proyecto de Supabase conectado. */
@@ -51,9 +54,7 @@ function Protected() {
 }
 
 const SOON = {
-  proyectos: ['Fase 2', 'Alta de proyectos, estados y dashboard por casa.'],
-  inversores: ['Fase 2', 'Inversores, aportes y posición por proyecto.'],
-  finanzas: ['Fase 3', 'Cashflow, P&L y movimientos de capital.'],
+  finanzas: ['Fase 3', 'Cashflow y P&L por proyecto, con budget vs forecast vs actual.'],
   compras: ['Fase 4', 'Catálogo, proveedores, cotizaciones y análisis de desvíos.'],
   cronogramas: ['Fase 5', 'Gantt con plan vs real y desvíos de plazo.'],
   reportes: ['Fase 7', 'Reportes por inversor, por proyecto y consolidado.'],
@@ -73,16 +74,16 @@ export default function App() {
           <Route element={<Protected />}>
             <Route index element={<Dashboard />} />
 
-            <Route path="proyectos" element={soon('Proyectos', 'proyectos')} />
-            <Route path="proyectos/activos" element={soon('Proyectos activos', 'proyectos')} />
-            <Route path="proyectos/terminados" element={soon('Proyectos terminados', 'proyectos')} />
+            <Route path="proyectos" element={<Proyectos />} />
+            <Route path="proyectos/activos" element={<Proyectos filter="activos" />} />
+            <Route path="proyectos/terminados" element={<Proyectos filter="terminados" />} />
 
-            <Route path="inversores" element={soon('Inversores', 'inversores')} />
+            <Route path="inversores" element={<Inversores />} />
 
-            <Route path="finanzas" element={<Navigate to="/finanzas/cashflow" replace />} />
+            <Route path="finanzas" element={<Navigate to="/finanzas/capital" replace />} />
             <Route path="finanzas/cashflow" element={soon('Cashflow', 'finanzas')} />
             <Route path="finanzas/pnl" element={soon('P&L', 'finanzas')} />
-            <Route path="finanzas/capital" element={soon('Movimientos de capital', 'finanzas')} />
+            <Route path="finanzas/capital" element={<Capital />} />
             <Route path="finanzas/caja" element={soon('Caja y cambios', 'finanzas')} />
 
             <Route path="compras" element={<Navigate to="/compras/items" replace />} />
