@@ -27,6 +27,24 @@ de `fx_rates` se elige, no el esquema.
 resultan ser un porcentaje sobre venta, pasa a ser un valor de configuración del
 proyecto (como `broker_fee_pct`, que ya existe con default 0,04). No cambia tablas.
 
+## Brechas conocidas del modelo
+
+**Caja en transferencias entre proyectos (detectado el 2026-09-18, Fase 2).**
+La vista `capital_effects` asigna `cash_delta = 0` a `reinversion` y
+`transferencia`. Eso es correcto para el capital —el destino recibe, el origen
+conserva su capital aportado— pero no para la caja: si el dinero sale
+físicamente de la cuenta del proyecto origen, el cashflow de ese proyecto debe
+bajar y el del destino subir.
+
+El obstáculo es estructural: cada movimiento es una fila con un solo
+`project_id`, así que no puede expresar −30.000 en origen y +30.000 en destino
+a la vez. La salida prevista es una vista que expanda cada movimiento entre
+proyectos en dos filas con signo opuesto, una por proyecto.
+
+Se resuelve en **Fase 3**, junto con el cashflow. Antes hay que definir el
+punto 7 de la tabla de arriba y si cada obra tiene caja propia o hay una caja
+común, como ocurre hoy en la planilla de los lotes 84 y 583.
+
 ## Recomendaciones pendientes de confirmación
 
 **#6 — Obras 84 y 583.** Recomiendo cargarlas como referencia y no migrar sus
