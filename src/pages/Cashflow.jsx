@@ -95,12 +95,12 @@ export default function Cashflow() {
           <Table
             columns={[
               { key: 'month', label: 'Mes' },
-              { key: 'in', label: 'Entradas', num: true },
-              { key: 'out', label: 'Salidas', num: true },
+              { key: 'inflows', label: 'Entradas', num: true },
+              { key: 'outflows', label: 'Salidas', num: true },
               { key: 'net', label: 'Neto', num: true },
-              { key: 'real', label: 'Realizado', num: true },
-              { key: 'proy', label: 'Proyectado', num: true },
-              { key: 'saldo', label: 'Saldo acumulado', num: true },
+              { key: 'net_realizado', label: 'Realizado', num: true },
+              { key: 'net_proyectado', label: 'Proyectado', num: true },
+              { key: 'closing_balance', label: 'Saldo acumulado', num: true },
             ]}
             rows={rows}
             empty="Todavía no hay movimientos. El cashflow se arma con aportes, gastos, ingresos y transferencias."
@@ -138,8 +138,8 @@ export default function Cashflow() {
               <Table
                 columns={[
                   { key: 'p', label: 'Proyecto' },
-                  { key: 'm', label: 'Mes' },
-                  { key: 'n', label: 'Necesidad', num: true },
+                  { key: 'month', label: 'Mes' },
+                  { key: 'necesidad_usd', label: 'Necesidad', num: true },
                 ]}
                 rows={requirements.data}
                 renderRow={(r) => (

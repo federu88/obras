@@ -41,8 +41,8 @@ export default function Ordenes() {
   return (
     <div>
       <PageHead
-        title="Compras"
-        subtitle="Una compra es un gasto: se carga desde la pestaña Gastos del proyecto, vinculada a un item y un proveedor."
+        title="Órdenes de compra"
+        subtitle="El circuito de una compra, de solicitada a pagada. Son los gastos que tienen item y proveedor; se cargan desde Día a día o desde la pestaña Gastos del proyecto."
       />
 
       {purchases.error && <ErrorBox message={purchases.error} />}
@@ -68,14 +68,14 @@ export default function Ordenes() {
 
           <Table
             columns={[
-              { key: 'date', label: 'Fecha' },
-              { key: 'item', label: 'Item' },
-              { key: 'sup', label: 'Proveedor' },
-              { key: 'proj', label: 'Obra' },
+              { key: 'expense_date', label: 'Fecha' },
+              { key: 'item', label: 'Item', sort: (p) => p.item?.code },
+              { key: 'sup', label: 'Proveedor', sort: (p) => p.supplier?.name },
+              { key: 'proj', label: 'Obra', sort: (p) => p.project?.code },
               { key: 'qty', label: 'Cant.', num: true },
-              { key: 'usd', label: 'USD', num: true },
-              { key: 'stage', label: 'Estado' },
-              { key: 'act', label: '' },
+              { key: 'amount_usd', label: 'USD', num: true },
+              { key: 'purchase_stage', label: 'Estado' },
+              { key: 'act', label: '', sort: false },
             ]}
             rows={rows}
             empty="Todavía no hay compras. Cargá un gasto con item y proveedor desde el proyecto."

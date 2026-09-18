@@ -65,7 +65,7 @@ const NAV = [
       { to: '/compras/items', label: 'Items' },
       { to: '/compras/proveedores', label: 'Proveedores' },
       { to: '/compras/cotizaciones', label: 'Cotizaciones' },
-      { to: '/compras/ordenes', label: 'Compras' },
+      { to: '/compras/ordenes', label: 'Órdenes de compra' },
     ],
   },
   { to: '/cronogramas', label: 'Cronogramas', icon: 'schedule' },

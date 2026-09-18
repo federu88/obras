@@ -35,12 +35,12 @@ export default function Cronogramas() {
           <Table
             columns={[
               { key: 'code', label: 'Obra' },
-              { key: 'act', label: 'Actividades', num: true },
-              { key: 'ok', label: 'Terminadas', num: true },
-              { key: 'late', label: 'Demoradas', num: true },
-              { key: 'plan', label: 'Avance plan', num: true },
-              { key: 'real', label: 'Avance real', num: true },
-              { key: 'fin', label: 'Fin proyectado' },
+              { key: 'actividades', label: 'Actividades', num: true },
+              { key: 'terminadas', label: 'Terminadas', num: true },
+              { key: 'demoradas', label: 'Demoradas', num: true },
+              { key: 'avance_planificado', label: 'Avance plan', num: true },
+              { key: 'avance_real', label: 'Avance real', num: true },
+              { key: 'fin_proyectado', label: 'Fin proyectado' },
             ]}
             rows={rows}
             empty="Ninguna obra tiene cronograma cargado todavía."
@@ -74,11 +74,11 @@ export default function Cronogramas() {
             ) : (
               <Table
                 columns={[
-                  { key: 'p', label: 'Obra' },
-                  { key: 'n', label: 'Actividad' },
-                  { key: 'a', label: 'Problema' },
-                  { key: 'pf', label: 'Fin plan' },
-                  { key: 'd', label: 'Atraso', num: true },
+                  { key: 'code', label: 'Obra' },
+                  { key: 'name', label: 'Actividad' },
+                  { key: 'alerta', label: 'Problema' },
+                  { key: 'planned_finish', label: 'Fin plan' },
+                  { key: 'delay_days', label: 'Atraso', num: true },
                 ]}
                 rows={alerts.data ?? []}
                 empty="Ninguna actividad con problemas de plazo."

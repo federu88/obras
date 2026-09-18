@@ -73,7 +73,7 @@ const REPORTES = [
   },
   {
     key: 'compras',
-    title: 'Compras',
+    title: 'Órdenes de compra',
     detail: 'Todas las compras con item, proveedor, obra y estado.',
     load: listPurchases,
     flatten: (r) => ({
