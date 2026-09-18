@@ -513,3 +513,18 @@ export const listItemTrends = () =>
 
 export const createPricePoint = (payload) =>
   supabase.from('item_price_points').insert(payload).select().single().then(unwrap)
+
+/* --- Plan de obra ----------------------------------------------------------- */
+
+/** El presupuesto visto como plan: item, fecha prevista y actividad. */
+export const listPlanDeObra = (projectId) =>
+  supabase
+    .from('plan_de_obra')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('planned_date', { nullsFirst: false })
+    .then(unwrap)
+
+/** Alta masiva: el arquitecto elige muchos items de una vez. */
+export const createBudgetLines = (rows) =>
+  supabase.from('budget_lines').insert(rows).select().then(unwrap)

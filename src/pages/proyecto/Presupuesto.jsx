@@ -8,10 +8,12 @@ import {
   getBudgetLine,
   listCostCategories,
   listItemsPlain,
+  listTasks,
 } from '../../lib/queries'
-import { usd, pct, variance } from '../../lib/format'
+import { usd, pct, date, variance } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { Table, Loading, ErrorBox, Drawer, Field } from '../../components/ui'
+import PlanificadorDrawer from '../../components/PlanificadorDrawer'
 
 const EMPTY = {
   category_id: '',
@@ -22,6 +24,8 @@ const EMPTY = {
   price_original_usd: '',
   qty_forecast: '',
   price_forecast_usd: '',
+  planned_date: '',
+  task_id: '',
 }
 
 function Var({ actual, baseline }) {
@@ -46,6 +50,8 @@ export default function Presupuesto({ projectId, onChange }) {
   const lines = useAsync(() => listBudgetLines(projectId), [projectId])
   const categories = useAsync(listCostCategories)
   const items = useAsync(listItemsPlain)
+  const tasks = useAsync(() => listTasks(projectId), [projectId])
+  const [planificando, setPlanificando] = useState(false)
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -63,6 +69,8 @@ export default function Presupuesto({ projectId, onChange }) {
         qty_forecast: form.qty_forecast === '' ? null : Number(form.qty_forecast),
         price_forecast_usd:
           form.price_forecast_usd === '' ? null : Number(form.price_forecast_usd),
+        planned_date: form.planned_date || null,
+        task_id: form.task_id || null,
       }
       if (abierto === 'nuevo') await createBudgetLine({ ...payload, project_id: projectId })
       else await updateBudgetLine(abierto.budget_line_id, payload)
@@ -88,6 +96,8 @@ export default function Presupuesto({ projectId, onChange }) {
       price_original_usd: full.price_original_usd ?? '',
       qty_forecast: full.qty_forecast ?? '',
       price_forecast_usd: full.price_forecast_usd ?? '',
+      planned_date: full.planned_date ?? '',
+      task_id: full.task_id ?? '',
     })
     setAbierto(r)
   }
@@ -105,11 +115,14 @@ export default function Presupuesto({ projectId, onChange }) {
       forecast: a.forecast + Number(r.total_forecast_usd ?? 0),
       actual: a.actual + Number(r.actual_usd ?? 0),
       committed: a.committed + Number(r.committed_usd ?? 0),
+      pendiente: a.pendiente + Number(r.pendiente_usd ?? 0),
     }),
-    { original: 0, forecast: 0, actual: 0, committed: 0 }
+    { original: 0, forecast: 0, actual: 0, committed: 0, pendiente: 0 }
   )
 
   const columns = [
+    { key: 'planned_date', label: 'Fecha prevista' },
+    { key: 'actividad', label: 'Actividad' },
     { key: 'categoria', label: 'Categoría' },
     { key: 'description', label: 'Item' },
     { key: 'qty_original', label: 'Cant.', num: true },
@@ -117,6 +130,7 @@ export default function Presupuesto({ projectId, onChange }) {
     { key: 'total_original_usd', label: 'Budget', num: true },
     { key: 'total_forecast_usd', label: 'Forecast', num: true },
     { key: 'actual_usd', label: 'Actual', num: true },
+    { key: 'pendiente_usd', label: 'Pendiente', num: true },
     { key: 'var', label: 'Desvío', num: true, sort: (r) => Number(r.actual_usd) - Number(r.total_original_usd) },
     { key: 'act', label: '', sort: false },
   ]
@@ -125,12 +139,19 @@ export default function Presupuesto({ projectId, onChange }) {
     <div style={{ display: 'grid', gap: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9375rem' }}>
-          El budget original queda congelado. El forecast es la estimación de hoy.
+          El budget original queda congelado; el forecast es la estimación de hoy. La
+          <strong> fecha prevista</strong> es lo que hace que el plan proyecte necesidad
+          de caja antes de que se gaste.
         </p>
         {canManage && (
-          <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>
-            + Línea de presupuesto
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>
+              + Línea suelta
+            </button>
+            <button className="btn btn-primary" onClick={() => setPlanificando(true)}>
+              Planificar desde el catálogo
+            </button>
+          </div>
         )}
       </div>
 
@@ -146,6 +167,8 @@ export default function Presupuesto({ projectId, onChange }) {
             empty="Todavía no hay líneas de presupuesto."
             renderRow={(r) => (
               <tr key={r.budget_line_id}>
+                <td className="nowrap">{date(r.planned_date)}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{r.actividad ?? '—'}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{r.categoria ?? '—'}</td>
                 <td>{r.description}</td>
                 <td className="num">{r.qty_original} {r.unit}</td>
@@ -153,6 +176,7 @@ export default function Presupuesto({ projectId, onChange }) {
                 <td className="num">{usd(r.total_original_usd)}</td>
                 <td className="num">{usd(r.total_forecast_usd)}</td>
                 <td className="num">{usd(r.actual_usd)}</td>
+                <td className="num">{usd(r.pendiente_usd)}</td>
                 <td className="num"><Var actual={r.actual_usd} baseline={r.total_original_usd} /></td>
                 <td className="nowrap">
                   {canManage && (
@@ -189,6 +213,10 @@ export default function Presupuesto({ projectId, onChange }) {
                   <tr>
                     <td>Comprometido</td>
                     <td className="num">{usd(totals.committed)}</td>
+                  </tr>
+                  <tr>
+                    <td>Pendiente de ejecutar</td>
+                    <td className="num">{usd(totals.pendiente)}</td>
                   </tr>
                   <tr>
                     <td>Desvío actual vs budget</td>
@@ -268,6 +296,22 @@ export default function Presupuesto({ projectId, onChange }) {
             vacío, el forecast es igual al original.
           </div>
 
+          <Field
+            label="Fecha prevista"
+            hint="Cuándo se va a usar o comprar. Alimenta el cashflow proyectado."
+          >
+            <input type="date" value={form.planned_date} onChange={set('planned_date')} />
+          </Field>
+
+          <Field label="Actividad del cronograma">
+            <select value={form.task_id} onChange={set('task_id')}>
+              <option value="">Sin actividad</option>
+              {(tasks.data ?? []).map((t) => (
+                <option key={t.task_id} value={t.task_id}>{t.name}</option>
+              ))}
+            </select>
+          </Field>
+
           <Field label="Cantidad estimada hoy">
             <input type="number" step="0.0001" min="0" value={form.qty_forecast} onChange={set('qty_forecast')} />
           </Field>
@@ -276,6 +320,17 @@ export default function Presupuesto({ projectId, onChange }) {
             <input type="number" step="0.0001" min="0" value={form.price_forecast_usd} onChange={set('price_forecast_usd')} />
           </Field>
         </Drawer>
+      )}
+
+      {planificando && (
+        <PlanificadorDrawer
+          projectId={projectId}
+          onClose={() => setPlanificando(false)}
+          onSaved={() => {
+            lines.reload()
+            onChange?.()
+          }}
+        />
       )}
     </div>
   )
