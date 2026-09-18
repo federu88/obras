@@ -204,3 +204,20 @@ export const listFxOperations = () =>
 
 export const createFxOperation = (payload) =>
   supabase.from('fx_operations').insert(payload).select().single().then(unwrap)
+
+/* --- Cashflow ------------------------------------------------------------- */
+
+export const listCashflowConsolidado = () =>
+  supabase.from('cashflow_consolidado').select('*').order('month').then(unwrap)
+
+export const listProjectCashflow = (projectId) =>
+  supabase
+    .from('project_cashflow')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('month')
+    .then(unwrap)
+
+/** Meses futuros que cierran en negativo: cuánta plata falta y cuándo. */
+export const listCashRequirements = () =>
+  supabase.from('cash_requirements').select('*').order('month').then(unwrap)

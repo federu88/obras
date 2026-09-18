@@ -75,7 +75,7 @@ con su fecha. Nunca se convierte con una constante global.
 |---|---|---|
 | 1 · Foundation | Repo, Vite, Supabase, auth, roles, RLS, layout, design system, FX | **Hecha** |
 | 2 · Core | Inversores, proyectos, movimientos de capital, dashboard | **Hecha** |
-| 3 · Project finance | Presupuesto, gastos, ingresos, P&L, forecast, caja | **Hecha**, salvo el cashflow mensual |
+| 3 · Project finance | Presupuesto, gastos, ingresos, P&L, forecast, caja, cashflow | **Hecha** |
 | 4 · Procurement | Items, proveedores, cotizaciones, compras, desvíos | Pendiente |
 | 5 · Execution | Tareas, Gantt, plan vs real, desvíos de plazo | Pendiente |
 | 6 · Capital network | Distribución, transferencias entre proyectos, reinversión | Pendiente |

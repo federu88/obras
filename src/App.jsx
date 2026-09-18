@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Proyectos from './pages/Proyectos'
 import Proyecto from './pages/Proyecto'
 import Pnl from './pages/Pnl'
+import Cashflow from './pages/Cashflow'
 import Caja from './pages/Caja'
 import Inversores from './pages/Inversores'
 import Capital from './pages/Capital'
@@ -57,7 +58,6 @@ function Protected() {
 }
 
 const SOON = {
-  finanzas: ['Fase 3', 'Cashflow y P&L por proyecto, con budget vs forecast vs actual.'],
   compras: ['Fase 4', 'Catálogo, proveedores, cotizaciones y análisis de desvíos.'],
   cronogramas: ['Fase 5', 'Gantt con plan vs real y desvíos de plazo.'],
   reportes: ['Fase 7', 'Reportes por inversor, por proyecto y consolidado.'],
@@ -84,8 +84,8 @@ export default function App() {
 
             <Route path="inversores" element={<Inversores />} />
 
-            <Route path="finanzas" element={<Navigate to="/finanzas/capital" replace />} />
-            <Route path="finanzas/cashflow" element={soon('Cashflow', 'finanzas')} />
+            <Route path="finanzas" element={<Navigate to="/finanzas/cashflow" replace />} />
+            <Route path="finanzas/cashflow" element={<Cashflow />} />
             <Route path="finanzas/pnl" element={<Pnl />} />
             <Route path="finanzas/capital" element={<Capital />} />
             <Route path="finanzas/caja" element={<Caja />} />

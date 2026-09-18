@@ -27,9 +27,10 @@ de `fx_rates` se elige, no el esquema.
 resultan ser un porcentaje sobre venta, pasa a ser un valor de configuración del
 proyecto (como `broker_fee_pct`, que ya existe con default 0,04). No cambia tablas.
 
-## Brechas conocidas del modelo
+## Brechas resueltas
 
-**Caja en transferencias entre proyectos (detectado el 2026-09-18, Fase 2).**
+**Caja en transferencias entre proyectos** — detectado el 2026-09-18 en Fase 2,
+resuelto el mismo dia en la migracion `0007_cashflow.sql`.
 La vista `capital_effects` asigna `cash_delta = 0` a `reinversion` y
 `transferencia`. Eso es correcto para el capital —el destino recibe, el origen
 conserva su capital aportado— pero no para la caja: si el dinero sale
