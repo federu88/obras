@@ -1,31 +1,32 @@
+import { Link } from 'react-router-dom'
 import { useAsync } from '../lib/useAsync'
-import { listInvestorSummary, listProjects, listProjectCapital } from '../lib/queries'
-import { usd } from '../lib/format'
-import { PageHead, Kpi, Table, Loading, ErrorBox, Badge } from '../components/ui'
+import {
+  getBusinessSummary,
+  listProjectHealth,
+  listCashRequirements,
+  listInvestorSummary,
+} from '../lib/queries'
+import { usd, pct } from '../lib/format'
+import { PageHead, Table, Loading, ErrorBox, Badge, Kpi } from '../components/ui'
 
-const ACTIVOS = ['aprobado', 'en_construccion']
-const TERMINADOS = ['terminado', 'vendido', 'cerrado']
-
-const sum = (rows, key) => (rows ?? []).reduce((a, r) => a + Number(r[key] ?? 0), 0)
+const MES = new Intl.DateTimeFormat('es-AR', { month: 'short', year: 'numeric' })
+const mes = (d) => MES.format(new Date(d + 'T00:00:00'))
 
 export default function Dashboard() {
+  const summary = useAsync(getBusinessSummary)
+  const health = useAsync(listProjectHealth)
+  const requirements = useAsync(listCashRequirements)
   const investors = useAsync(listInvestorSummary)
-  const projects = useAsync(listProjects)
-  const capital = useAsync(listProjectCapital)
 
-  const loading = investors.loading || projects.loading || capital.loading
-  const error = investors.error || projects.error || capital.error
+  const loading = summary.loading || health.loading
+  const error = summary.error || health.error
 
-  const capitalInvertido = sum(investors.data, 'capital_invertido_usd')
-  const profitPendiente = sum(investors.data, 'profit_pendiente_usd')
-  const profitCobrado = sum(investors.data, 'profit_cobrado_usd')
+  const s = summary.data ?? {}
+  const proyectos = health.data ?? []
+  const conProblemas = proyectos.filter((p) => p.problema_costo || p.problema_plazo)
+  const necesidades = requirements.data ?? []
 
-  const activos = (projects.data ?? []).filter((p) => ACTIVOS.includes(p.status))
-  const terminados = (projects.data ?? []).filter((p) => TERMINADOS.includes(p.status))
-
-  const capitalByProject = Object.fromEntries(
-    (capital.data ?? []).map((c) => [c.project_id, c])
-  )
+  const vacio = !loading && (s.proyectos_total ?? 0) === 0 && (investors.data ?? []).length === 0
 
   return (
     <div style={{ display: 'grid', gap: 24 }}>
@@ -38,76 +39,170 @@ export default function Dashboard() {
 
       {loading ? (
         <Loading />
+      ) : vacio ? (
+        <div className="notice notice-warning">
+          <strong>El sistema está vacío.</strong> Cargá una obra en{' '}
+          <Link to="/proyectos" style={{ color: 'var(--accent)' }}>Proyectos</Link> y los
+          inversores en{' '}
+          <Link to="/inversores" style={{ color: 'var(--accent)' }}>Inversores</Link> para
+          empezar a ver números reales acá.
+        </div>
       ) : (
         <>
-          <div className="kpi-grid">
-            <Kpi
-              label="Capital invertido"
-              value={usd(capitalInvertido)}
-              hint="Aportes − retiros + reinversiones"
-            />
-            <Kpi
-              label="Profit pendiente"
-              value={usd(profitPendiente)}
-              hint="Asignado, sin cobrar ni reinvertir"
-            />
-            <Kpi
-              label="Profit cobrado"
-              value={usd(profitCobrado)}
-              hint="Efectivamente distribuido"
-            />
-            <Kpi label="Proyectos activos" value={activos.length} hint="Aprobados o en construcción" />
-            <Kpi label="Proyectos terminados" value={terminados.length} hint="Terminados, vendidos o cerrados" />
-            <Kpi label="Inversores" value={(investors.data ?? []).length} />
-            <Kpi label="Capital disponible" value={null} hint="Fase 3 — requiere caja" />
-            <Kpi label="Resultado acumulado" value={null} hint="Fase 3 — requiere costos e ingresos" />
-          </div>
+          {/* --- Alertas primero: lo que requiere acción --- */}
+          {conProblemas.length > 0 && (
+            <div className="notice notice-warning">
+              <strong>
+                {conProblemas.length === 1
+                  ? '1 obra con problemas'
+                  : `${conProblemas.length} obras con problemas`}
+                :
+              </strong>{' '}
+              {conProblemas
+                .map(
+                  (p) =>
+                    `${p.code} (${[
+                      p.problema_costo && 'costo',
+                      p.problema_plazo && 'plazo',
+                    ]
+                      .filter(Boolean)
+                      .join(' y ')})`
+                )
+                .join(' · ')}
+            </div>
+          )}
 
+          {necesidades.length > 0 && (
+            <div className="notice notice-warning">
+              <strong>Necesidad de caja:</strong>{' '}
+              {necesidades
+                .slice(0, 3)
+                .map((r) => `${r.code} ${usd(r.necesidad_usd)} en ${mes(r.month)}`)
+                .join(' · ')}
+            </div>
+          )}
+
+          {/* --- Capital --- */}
           <section style={{ display: 'grid', gap: 12 }}>
-            <h2>Capital por proyecto</h2>
+            <h2>Capital</h2>
+            <div className="kpi-grid">
+              <Kpi label="Aportado" value={usd(s.capital_aportado_usd)} hint="Total histórico" />
+              <Kpi label="Invertido" value={usd(s.capital_invertido_usd)} hint="Aportes − retiros + reinversiones" />
+              <Kpi label="Disponible" value={usd(s.capital_disponible_usd)} hint="Caja − comprometido" />
+              <Kpi label="Comprometido" value={usd(s.comprometido_usd)} hint="Aprobado, sin recibir" />
+            </div>
+          </section>
+
+          {/* --- Resultado --- */}
+          <section style={{ display: 'grid', gap: 12 }}>
+            <h2>Resultado</h2>
+            <div className="kpi-grid">
+              <Kpi label="Resultado acumulado" value={usd(s.resultado_acumulado_usd)} hint="Ingresos − costo actual" />
+              <Kpi label="Profit proyectado" value={usd(s.profit_proyectado_usd)} hint="Si todo cierra como se prevé" />
+              <Kpi label="Profit distribuido" value={usd(s.profit_realizado_usd)} hint="Pagado a inversores" />
+              <Kpi label="Profit pendiente" value={usd(s.profit_pendiente_usd)} hint="Asignado, sin cobrar" />
+              <Kpi label="Profit reinvertido" value={usd(s.profit_reinvertido_usd)} />
+              <Kpi label="Obras activas" value={s.proyectos_activos} />
+              <Kpi label="Obras terminadas" value={s.proyectos_terminados} />
+              <Kpi label="Inversores" value={(investors.data ?? []).length} />
+            </div>
+          </section>
+
+          {/* --- Por proyecto --- */}
+          <section style={{ display: 'grid', gap: 12 }}>
+            <h2>Por obra</h2>
             <Table
               columns={[
-                { key: 'code', label: 'Código' },
-                { key: 'name', label: 'Proyecto' },
-                { key: 'status', label: 'Estado' },
-                { key: 'cap', label: 'Capital aportado', num: true },
-                { key: 'budget', label: 'Presupuesto', num: true },
+                { key: 'code', label: 'Obra' },
+                { key: 'budget', label: 'Budget', num: true },
+                { key: 'fc', label: 'Forecast', num: true },
+                { key: 'ac', label: 'Actual', num: true },
+                { key: 'dev', label: 'Desvío', num: true },
+                { key: 'prof', label: 'Profit proy.', num: true },
+                { key: 'av', label: 'Avance', num: true },
+                { key: 'flags', label: 'Estado' },
               ]}
-              rows={projects.data ?? []}
-              empty="Todavía no hay proyectos cargados."
+              rows={proyectos}
+              empty="Todavía no hay obras cargadas."
               renderRow={(p) => (
-                <tr key={p.id}>
-                  <td style={{ fontWeight: 500 }}>{p.code}</td>
-                  <td>{p.name}</td>
-                  <td><Badge>{p.status.replace('_', ' ')}</Badge></td>
-                  <td className="num">{usd(capitalByProject[p.id]?.capital_aportado_usd)}</td>
+                <tr key={p.project_id}>
+                  <td style={{ fontWeight: 500 }}>
+                    <Link to={`/proyectos/${p.project_id}`} style={{ color: 'var(--accent)' }}>
+                      {p.code}
+                    </Link>{' '}
+                    {p.name}
+                  </td>
                   <td className="num">{usd(p.budget_usd)}</td>
+                  <td className="num">{usd(p.forecast_cost_usd)}</td>
+                  <td className="num">{usd(p.actual_cost_usd)}</td>
+                  <td className={`num ${p.desvio_costo_rel > 0 ? 'var-neg' : 'var-pos'}`}>
+                    {p.desvio_costo_rel == null ? '—' : pct(p.desvio_costo_rel)}
+                  </td>
+                  <td className={`num ${Number(p.forecast_profit_usd) < 0 ? 'var-neg' : ''}`}>
+                    {usd(p.forecast_profit_usd)}
+                  </td>
+                  <td className="num">
+                    {p.avance_real == null ? '—' : pct(p.avance_real)}
+                  </td>
+                  <td style={{ display: 'flex', gap: 4 }}>
+                    {p.problema_costo && <Badge tone="off">costo</Badge>}
+                    {p.problema_plazo && <Badge tone="off">plazo</Badge>}
+                    {!p.problema_costo && !p.problema_plazo && <Badge tone="ok">ok</Badge>}
+                  </td>
                 </tr>
               )}
             />
           </section>
 
+          {/* --- Por inversor --- */}
           <section style={{ display: 'grid', gap: 12 }}>
-            <h2>Posición por inversor</h2>
+            <h2>Por inversor</h2>
             <Table
               columns={[
                 { key: 'name', label: 'Inversor' },
                 { key: 'cap', label: 'Capital invertido', num: true },
                 { key: 'pend', label: 'Profit pendiente', num: true },
                 { key: 'cobr', label: 'Profit cobrado', num: true },
+                { key: 'n', label: 'Obras', num: true },
               ]}
               rows={investors.data ?? []}
               empty="Todavía no hay inversores cargados."
               renderRow={(i) => (
                 <tr key={i.investor_id}>
-                  <td style={{ fontWeight: 500 }}>{i.name}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    <Link to={`/inversores/${i.investor_id}`} style={{ color: 'var(--accent)' }}>
+                      {i.name}
+                    </Link>
+                  </td>
                   <td className="num">{usd(i.capital_invertido_usd)}</td>
                   <td className="num">{usd(i.profit_pendiente_usd)}</td>
                   <td className="num">{usd(i.profit_cobrado_usd)}</td>
+                  <td className="num">{i.proyectos_activos}</td>
                 </tr>
               )}
             />
           </section>
+
+          {necesidades.length > 0 && (
+            <section style={{ display: 'grid', gap: 12 }}>
+              <h2>Próximas necesidades de caja</h2>
+              <Table
+                columns={[
+                  { key: 'p', label: 'Obra' },
+                  { key: 'm', label: 'Mes' },
+                  { key: 'n', label: 'Necesidad', num: true },
+                ]}
+                rows={necesidades}
+                renderRow={(r) => (
+                  <tr key={`${r.project_id}-${r.month}`}>
+                    <td>{r.code} {r.name}</td>
+                    <td>{mes(r.month)}</td>
+                    <td className="num var-neg">{usd(r.necesidad_usd)}</td>
+                  </tr>
+                )}
+              />
+            </section>
+          )}
         </>
       )}
     </div>

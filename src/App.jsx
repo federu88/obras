@@ -13,6 +13,8 @@ import Proveedores from './pages/compras/Proveedores'
 import Cotizaciones from './pages/compras/Cotizaciones'
 import Ordenes from './pages/compras/Ordenes'
 import Cronogramas from './pages/Cronogramas'
+import Reportes from './pages/Reportes'
+import Inversor from './pages/Inversor'
 import Caja from './pages/Caja'
 import Inversores from './pages/Inversores'
 import Capital from './pages/Capital'
@@ -62,14 +64,6 @@ function Protected() {
   return <Layout />
 }
 
-const SOON = {
-  reportes: ['Fase 7', 'Reportes por inversor, por proyecto y consolidado.'],
-}
-
-const soon = (title, key) => (
-  <Placeholder title={title} phase={SOON[key][0]} detail={SOON[key][1]} />
-)
-
 export default function App() {
   if (!isSupabaseConfigured) return <SetupRequired />
 
@@ -86,6 +80,7 @@ export default function App() {
             <Route path="proyectos/:id" element={<Proyecto />} />
 
             <Route path="inversores" element={<Inversores />} />
+            <Route path="inversores/:id" element={<Inversor />} />
 
             <Route path="finanzas" element={<Navigate to="/finanzas/cashflow" replace />} />
             <Route path="finanzas/cashflow" element={<Cashflow />} />
@@ -100,7 +95,7 @@ export default function App() {
             <Route path="compras/ordenes" element={<Ordenes />} />
 
             <Route path="cronogramas" element={<Cronogramas />} />
-            <Route path="reportes" element={soon('Reportes', 'reportes')} />
+            <Route path="reportes" element={<Reportes />} />
             <Route
               path="configuracion"
               element={

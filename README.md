@@ -78,8 +78,8 @@ con su fecha. Nunca se convierte con una constante global.
 | 3 · Project finance | Presupuesto, gastos, ingresos, P&L, forecast, caja, cashflow | **Hecha** |
 | 4 · Procurement | Items, proveedores, cotizaciones, compras, desvíos | **Hecha** |
 | 5 · Execution | Tareas, Gantt, plan vs real, desvíos de plazo | **Hecha** |
-| 6 · Capital network | Distribución, transferencias entre proyectos, reinversión | Pendiente |
-| 7 · Reporting | Dashboards de inversor, proyecto y consolidado | Pendiente |
+| 6 · Capital network | Distribución, transferencias entre proyectos, reinversión | **Hecha** |
+| 7 · Reporting | Dashboards de inversor, proyecto y consolidado, export CSV | **Hecha** |
 
 ## Origen funcional
 

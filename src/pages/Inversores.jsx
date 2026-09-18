@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAsync } from '../lib/useAsync'
 import { listInvestorSummary, createInvestor } from '../lib/queries'
 import { usd } from '../lib/format'
@@ -69,7 +70,9 @@ export default function Inversores() {
           empty="Todavía no hay inversores cargados."
           renderRow={(i) => (
             <tr key={i.investor_id}>
-              <td style={{ fontWeight: 500 }}>{i.name}</td>
+              <td style={{ fontWeight: 500 }}>
+                <Link to={`/inversores/${i.investor_id}`} style={{ color: 'var(--accent)' }}>{i.name}</Link>
+              </td>
               <td>
                 <Badge tone={i.is_active ? 'ok' : 'off'}>
                   {i.is_active ? 'Activo' : 'Inactivo'}

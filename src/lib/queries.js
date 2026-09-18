@@ -362,3 +362,32 @@ export const listTaskDependencies = (projectId) =>
 
 export const createTaskDependency = (payload) =>
   supabase.from('task_dependencies').insert(payload).select().single().then(unwrap)
+
+/* --- Reporting ------------------------------------------------------------ */
+
+export const getBusinessSummary = () =>
+  supabase.from('business_summary').select('*').single().then(unwrap)
+
+export const listProjectHealth = () =>
+  supabase.from('project_health').select('*').order('code').then(unwrap)
+
+export const listInvestorReport = (investorId) => {
+  let q = supabase.from('investor_report').select('*').order('investor_name')
+  if (investorId) q = q.eq('investor_id', investorId)
+  return q.then(unwrap)
+}
+
+export const getInvestor = (id) =>
+  supabase.from('investors').select('*').eq('id', id).single().then(unwrap)
+
+export const listInvestorMovements = (investorId) =>
+  supabase
+    .from('capital_movements')
+    .select(
+      `id, type, status, movement_date, amount, currency, amount_usd, concept,
+       project:projects!capital_movements_project_id_fkey ( id, code, name ),
+       origen:projects!capital_movements_from_project_id_fkey ( id, code )`
+    )
+    .eq('investor_id', investorId)
+    .order('movement_date', { ascending: false })
+    .then(unwrap)
