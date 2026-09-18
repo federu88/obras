@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAsync } from '../lib/useAsync'
-import { getProject, getProjectPnl } from '../lib/queries'
+import { getProject, getProjectPnl, updateProject } from '../lib/queries'
 import { usd, pct, date, variance } from '../lib/format'
 import { Loading, ErrorBox, Badge, Kpi } from '../components/ui'
 import Presupuesto from './proyecto/Presupuesto'
@@ -9,6 +9,8 @@ import Gastos from './proyecto/Gastos'
 import Ingresos from './proyecto/Ingresos'
 import Desvios from './proyecto/Desvios'
 import Cronograma from './proyecto/Cronograma'
+import ProyectoForm from '../components/ProyectoForm'
+import { useAuth } from '../context/AuthContext'
 
 const STATUS = {
   idea: 'Idea',
@@ -44,7 +46,9 @@ function Variacion({ actual, baseline }) {
 
 export default function Proyecto() {
   const { id } = useParams()
+  const { canManage } = useAuth()
   const [tab, setTab] = useState('resumen')
+  const [editando, setEditando] = useState(false)
 
   const project = useAsync(() => getProject(id), [id])
   const pnl = useAsync(() => getProjectPnl(id), [id])
@@ -68,9 +72,18 @@ export default function Proyecto() {
         <Link to="/proyectos" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
           ← Proyectos
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
           <h1>{p.name}</h1>
           <Badge>{STATUS[p.status] ?? p.status}</Badge>
+          {canManage && (
+            <button
+              className="btn"
+              style={{ marginLeft: 'auto', padding: '6px 12px' }}
+              onClick={() => setEditando(true)}
+            >
+              Editar
+            </button>
+          )}
         </div>
         <p style={{ margin: '4px 0 0', color: 'var(--text-muted)' }}>
           {p.code}
@@ -164,6 +177,18 @@ export default function Proyecto() {
       {tab === 'ingresos' && <Ingresos projectId={id} onChange={pnl.reload} />}
       {tab === 'desvios' && <Desvios projectId={id} />}
       {tab === 'cronograma' && <Cronograma projectId={id} />}
+
+      {editando && (
+        <ProyectoForm
+          project={p}
+          onClose={() => setEditando(false)}
+          onSave={async (payload) => {
+            await updateProject(p.id, payload)
+            project.reload()
+            pnl.reload()
+          }}
+        />
+      )}
     </div>
   )
 }
