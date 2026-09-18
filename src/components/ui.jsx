@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import './ui.css'
 
 export function PageHead({ title, subtitle, action }) {
@@ -12,22 +13,98 @@ export function PageHead({ title, subtitle, action }) {
   )
 }
 
+/**
+ * Tabla ordenable.
+ *
+ * Una columna es ordenable si define `sort` (una función que devuelve el valor
+ * a comparar) o si su `key` coincide con un campo de la fila. Las que no,
+ * quedan sin ordenar en vez de ordenar por algo equivocado.
+ *
+ * Primer clic en una numérica ordena de mayor a menor, que es lo que se busca
+ * casi siempre: ver los importes más grandes. En las de texto arranca A→Z.
+ */
 export function Table({ columns, rows, empty = 'Todavía no hay registros.', renderRow }) {
+  const [orden, setOrden] = useState(null) // { key, desc }
+
+  const valorDe = (col, row) => {
+    if (typeof col.sort === 'function') return col.sort(row)
+    if (col.sort === false) return undefined
+    return row?.[col.key]
+  }
+
+  const ordenables = useMemo(() => {
+    const set = new Set()
+    if (!rows?.length) return set
+    for (const c of columns) {
+      if (c.sort === false) continue
+      if (typeof c.sort === 'function') { set.add(c.key); continue }
+      if (rows.some((r) => r?.[c.key] != null)) set.add(c.key)
+    }
+    return set
+  }, [columns, rows])
+
+  const filas = useMemo(() => {
+    if (!orden || !rows?.length) return rows ?? []
+    const col = columns.find((c) => c.key === orden.key)
+    if (!col) return rows
+
+    const copia = [...rows]
+    copia.sort((a, b) => {
+      const va = valorDe(col, a)
+      const vb = valorDe(col, b)
+      // Los vacíos siempre al final, ordene como ordene.
+      if (va == null && vb == null) return 0
+      if (va == null) return 1
+      if (vb == null) return -1
+
+      const na = Number(va)
+      const nb = Number(vb)
+      const cmp =
+        !Number.isNaN(na) && !Number.isNaN(nb) && va !== '' && vb !== ''
+          ? na - nb
+          : String(va).localeCompare(String(vb), 'es', { numeric: true })
+      return orden.desc ? -cmp : cmp
+    })
+    return copia
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, orden, columns])
+
   if (!rows?.length) return <div className="table-wrap"><div className="state">{empty}</div></div>
+
+  function alternar(c) {
+    if (!ordenables.has(c.key)) return
+    setOrden((o) =>
+      o?.key === c.key
+        ? { key: c.key, desc: !o.desc }
+        : { key: c.key, desc: Boolean(c.num) } // numéricas arrancan de mayor a menor
+    )
+  }
 
   return (
     <div className="table-wrap">
       <table className="data">
         <thead>
           <tr>
-            {columns.map((c) => (
-              <th key={c.key} className={c.num ? 'num' : undefined}>
-                {c.label}
-              </th>
-            ))}
+            {columns.map((c) => {
+              const puede = ordenables.has(c.key)
+              const activo = orden?.key === c.key
+              return (
+                <th
+                  key={c.key}
+                  className={[c.num ? 'num' : '', puede ? 'sortable' : '', activo ? 'sorted' : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => alternar(c)}
+                  title={puede ? 'Ordenar' : undefined}
+                >
+                  {c.label}
+                  {activo && <span className="sort-arrow">{orden.desc ? '↓' : '↑'}</span>}
+                </th>
+              )
+            })}
           </tr>
         </thead>
-        <tbody>{rows.map(renderRow)}</tbody>
+        <tbody>{filas.map(renderRow)}</tbody>
       </table>
     </div>
   )

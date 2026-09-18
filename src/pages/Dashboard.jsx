@@ -114,13 +114,13 @@ export default function Dashboard() {
             <Table
               columns={[
                 { key: 'code', label: 'Obra' },
-                { key: 'budget', label: 'Budget', num: true },
-                { key: 'fc', label: 'Forecast', num: true },
-                { key: 'ac', label: 'Actual', num: true },
-                { key: 'dev', label: 'Desvío', num: true },
-                { key: 'prof', label: 'Profit proy.', num: true },
-                { key: 'av', label: 'Avance', num: true },
-                { key: 'flags', label: 'Estado' },
+                { key: 'budget_usd', label: 'Budget', num: true },
+                { key: 'forecast_cost_usd', label: 'Forecast', num: true },
+                { key: 'actual_cost_usd', label: 'Actual', num: true },
+                { key: 'desvio_costo_rel', label: 'Desvío', num: true },
+                { key: 'forecast_profit_usd', label: 'Profit proy.', num: true },
+                { key: 'avance_real', label: 'Avance', num: true },
+                { key: 'flags', label: 'Estado', sort: (p) => (p.problema_costo ? 2 : 0) + (p.problema_plazo ? 1 : 0) },
               ]}
               rows={proyectos}
               empty="Todavía no hay obras cargadas."
@@ -160,10 +160,10 @@ export default function Dashboard() {
             <Table
               columns={[
                 { key: 'name', label: 'Inversor' },
-                { key: 'cap', label: 'Capital invertido', num: true },
-                { key: 'pend', label: 'Profit pendiente', num: true },
-                { key: 'cobr', label: 'Profit cobrado', num: true },
-                { key: 'n', label: 'Obras', num: true },
+                { key: 'capital_invertido_usd', label: 'Capital invertido', num: true },
+                { key: 'profit_pendiente_usd', label: 'Profit pendiente', num: true },
+                { key: 'profit_cobrado_usd', label: 'Profit cobrado', num: true },
+                { key: 'proyectos_activos', label: 'Obras', num: true },
               ]}
               rows={investors.data ?? []}
               empty="Todavía no hay inversores cargados."
@@ -189,8 +189,8 @@ export default function Dashboard() {
               <Table
                 columns={[
                   { key: 'p', label: 'Obra' },
-                  { key: 'm', label: 'Mes' },
-                  { key: 'n', label: 'Necesidad', num: true },
+                  { key: 'month', label: 'Mes' },
+                  { key: 'necesidad_usd', label: 'Necesidad', num: true },
                 ]}
                 rows={necesidades}
                 renderRow={(r) => (

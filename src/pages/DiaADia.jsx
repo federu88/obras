@@ -4,6 +4,7 @@ import {
   listProjects,
   listCostCategories,
   listSuppliers,
+  listItemsPlain,
   listCashBalances,
   listCashAccounts,
   createExpense,
@@ -19,6 +20,14 @@ import { PageHead, Table, Loading, ErrorBox, Kpi, Drawer, Field } from '../compo
 import GastoForm from '../components/GastoForm'
 
 const hoyIso = () => new Date().toISOString().slice(0, 10)
+
+/* Un solo catálogo con tipo, no tres catálogos. Agrupa sin fragmentar el
+   historial de precios ni la comparación de proveedores. */
+const TIPOS = {
+  insumo: 'Insumos de obra',
+  servicio: 'Servicios — expensas, luz, gas, seguros',
+  honorario: 'Honorarios — escribanía, gestoría, arquitectura',
+}
 
 /**
  * Día a día de obra.
@@ -47,6 +56,7 @@ export default function DiaADia() {
 
   const categories = useAsync(listCostCategories)
   const suppliers = useAsync(listSuppliers)
+  const items = useAsync(listItemsPlain)
   const balances = useAsync(listCashBalances)
   const accounts = useAsync(listCashAccounts)
   const gastos = useAsync(
@@ -61,6 +71,8 @@ export default function DiaADia() {
   /* --- Carga rápida -------------------------------------------------------- */
   const [g, setG] = useState({
     expense_date: hoyIso(),
+    kind: 'insumo',
+    item_id: '',
     description: '',
     category_id: '',
     supplier_id: '',
@@ -90,6 +102,7 @@ export default function DiaADia() {
         project_id: projectId,
         description: g.description,
         category_id: g.category_id || null,
+        item_id: g.item_id || null,
         supplier_id: g.supplier_id || null,
         expense_date: g.expense_date,
         qty: 1,
@@ -100,7 +113,7 @@ export default function DiaADia() {
       })
       /* Se conservan fecha, categoría y proveedor: en una jornada se cargan
          varios gastos del mismo rubro y el mismo día. */
-      setG((f) => ({ ...f, description: '', amount: '' }))
+      setG((f) => ({ ...f, description: '', amount: '', item_id: '' }))
       conceptoRef.current?.focus()
       gastos.reload()
       mensual.reload()
@@ -222,13 +235,52 @@ export default function DiaADia() {
             style={{
               display: 'grid',
               gap: 10,
-              gridTemplateColumns: 'minmax(120px,0.7fr) minmax(200px,2fr) minmax(160px,1.2fr) minmax(160px,1.2fr) minmax(110px,0.8fr) minmax(90px,0.6fr) auto',
+              gridTemplateColumns:
+                'minmax(110px,0.6fr) minmax(130px,0.9fr) minmax(190px,1.6fr) minmax(170px,1.4fr) minmax(150px,1.1fr) minmax(150px,1.1fr) minmax(100px,0.7fr) minmax(85px,0.5fr) auto',
               alignItems: 'end',
             }}
           >
             <div className="field">
               <label>Fecha</label>
               <input type="date" required value={g.expense_date} onChange={set('expense_date')} />
+            </div>
+
+            <div className="field">
+              <label>Tipo</label>
+              <select
+                value={g.kind}
+                onChange={(e) => setG((f) => ({ ...f, kind: e.target.value, item_id: '' }))}
+              >
+                <option value="insumo">Insumo</option>
+                <option value="servicio">Servicio</option>
+                <option value="honorario">Honorario</option>
+              </select>
+            </div>
+
+            <div className="field">
+              <label>Item del catálogo</label>
+              <select
+                value={g.item_id}
+                onChange={(e) => {
+                  const item_id = e.target.value
+                  const it = (items.data ?? []).find((i) => i.id === item_id)
+                  /* Elegir el item completa concepto y categoría, que es lo que
+                     ahorra tipear. El concepto queda editable para el detalle. */
+                  setG((f) => ({
+                    ...f,
+                    item_id,
+                    description: it ? it.description : f.description,
+                    category_id: it?.category_id ?? f.category_id,
+                  }))
+                }}
+              >
+                <option value="">Sin item — escribir a mano</option>
+                {(items.data ?? [])
+                  .filter((i) => i.kind === g.kind)
+                  .map((i) => (
+                    <option key={i.id} value={i.id}>{i.code} · {i.description}</option>
+                  ))}
+              </select>
             </div>
 
             <div className="field">
@@ -288,8 +340,10 @@ export default function DiaADia() {
           </div>
 
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
-            La cotización se aplica sola según la fecha del gasto. Al guardar se
-            conservan fecha, categoría y proveedor, para encadenar varios seguidos.
+            Elegir un item del catálogo completa el concepto y la categoría. Si no
+            está en el catálogo, dejá el item vacío y escribilo a mano. La cotización
+            se aplica sola según la fecha, y al guardar se conservan fecha, tipo,
+            categoría y proveedor, para encadenar varios seguidos.
           </p>
         </form>
       )}
@@ -303,13 +357,13 @@ export default function DiaADia() {
         ) : (
           <Table
             columns={[
-              { key: 'f', label: 'Fecha' },
-              { key: 'c', label: 'Concepto' },
-              { key: 'cat', label: 'Categoría' },
-              { key: 'p', label: 'Proveedor' },
-              { key: 'i', label: 'Importe', num: true },
-              { key: 'u', label: 'USD', num: true },
-              { key: 'a', label: '' },
+              { key: 'expense_date', label: 'Fecha' },
+              { key: 'description', label: 'Concepto' },
+              { key: 'cat', label: 'Categoría', sort: (x) => x.category?.name },
+              { key: 'p', label: 'Proveedor', sort: (x) => x.supplier?.name ?? x.supplier_name },
+              { key: 'i', label: 'Importe', num: true, sort: (x) => x.qty * x.unit_price },
+              { key: 'amount_usd', label: 'USD', num: true },
+              { key: 'a', label: '', sort: false },
             ]}
             rows={filas}
             empty="Todavía no hay gastos cargados en esta obra."
@@ -354,9 +408,9 @@ export default function DiaADia() {
           <h2>Últimos meses</h2>
           <Table
             columns={[
-              { key: 'm', label: 'Mes' },
-              { key: 'n', label: 'Gastos', num: true },
-              { key: 't', label: 'Total USD', num: true },
+              { key: 'month', label: 'Mes' },
+              { key: 'cantidad', label: 'Gastos', num: true },
+              { key: 'total_usd', label: 'Total USD', num: true },
             ]}
             rows={mensual.data}
             renderRow={(m) => (

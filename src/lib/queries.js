@@ -240,7 +240,12 @@ export const listItems = () =>
   supabase.from('item_prices').select('*').order('code').then(unwrap)
 
 export const listItemsPlain = () =>
-  supabase.from('items').select('id, code, description, unit').order('code').then(unwrap)
+  supabase
+    .from('items')
+    .select('id, code, description, unit, kind, category_id')
+    .eq('is_active', true)
+    .order('code')
+    .then(unwrap)
 
 export const createItem = (payload) =>
   supabase.from('items').insert(payload).select().single().then(unwrap)

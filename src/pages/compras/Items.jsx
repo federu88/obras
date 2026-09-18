@@ -17,7 +17,15 @@ import { PageHead, Table, Loading, ErrorBox, Drawer, Field } from '../../compone
    unidad no se puede comparar un precio entre proveedores. */
 const UNITS = ['un', 'm', 'm2', 'm3', 'kg', 'tn', 'lt', 'bolsa', 'ml', 'global', 'jornal']
 
-const EMPTY = { code: '', description: '', category_id: '', unit: 'un', spec: '' }
+const KINDS = {
+  insumo: 'Insumo de obra',
+  servicio: 'Servicio — expensas, luz, gas, seguros',
+  honorario: 'Honorario — escribanía, gestoría, arquitectura',
+}
+
+const KIND_CORTO = { insumo: 'Insumo', servicio: 'Servicio', honorario: 'Honorario' }
+
+const EMPTY = { code: '', description: '', category_id: '', unit: 'un', spec: '', kind: 'insumo' }
 
 export default function Items() {
   const { canManage } = useAuth()
@@ -26,6 +34,7 @@ export default function Items() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
   const [expanded, setExpanded] = useState(null)
+  const [filtro, setFiltro] = useState('')
 
   const items = useAsync(listItems)
   const categories = useAsync(listCostCategories)
@@ -60,6 +69,7 @@ export default function Items() {
         category_id: form.category_id || null,
         unit: form.unit,
         spec: form.spec || null,
+        kind: form.kind,
       }
       if (abierto === 'nuevo') await createItem(payload)
       else await updateItem(abierto.item_id, payload)
@@ -79,9 +89,27 @@ export default function Items() {
         title="Items"
         subtitle="Catálogo central, reutilizable entre proyectos. Guarda el historial de precios."
         action={
-          canManage && (
-            <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>+ Nuevo item</button>
-          )
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select
+              value={filtro}
+              onChange={(e) => setFiltro(e.target.value)}
+              style={{
+                padding: '9px 12px',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--surface)',
+                color: 'var(--text)',
+              }}
+            >
+              <option value="">Todos los tipos</option>
+              {Object.entries(KIND_CORTO).map(([k, l]) => (
+                <option key={k} value={k}>{l}</option>
+              ))}
+            </select>
+            {canManage && (
+              <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>+ Nuevo item</button>
+            )}
+          </div>
         }
       />
 
@@ -93,17 +121,18 @@ export default function Items() {
         <Table
           columns={[
             { key: 'code', label: 'Código' },
-            { key: 'desc', label: 'Item' },
-            { key: 'cat', label: 'Categoría' },
+            { key: 'description', label: 'Item' },
+            { key: 'kind', label: 'Tipo' },
+            { key: 'categoria', label: 'Categoría' },
             { key: 'unit', label: 'Unidad' },
-            { key: 'quoted', label: 'Últ. cotizado', num: true },
-            { key: 'bought', label: 'Últ. comprado', num: true },
-            { key: 'avg', label: 'Promedio', num: true },
-            { key: 'n', label: 'Cotiz.', num: true },
-            { key: 'act', label: '' },
+            { key: 'ultimo_precio_cotizado_usd', label: 'Últ. cotizado', num: true },
+            { key: 'ultimo_precio_comprado_usd', label: 'Últ. comprado', num: true },
+            { key: 'precio_promedio_usd', label: 'Promedio', num: true },
+            { key: 'cotizaciones', label: 'Cotiz.', num: true },
+            { key: 'act', label: '', sort: false },
           ]}
-          rows={items.data ?? []}
-          empty="Todavía no hay items en el catálogo."
+          rows={(items.data ?? []).filter((i) => !filtro || i.kind === filtro)}
+          empty="No hay items de este tipo en el catálogo."
           renderRow={(i) => (
             <tr
               key={i.item_id}
@@ -112,6 +141,9 @@ export default function Items() {
             >
               <td style={{ fontWeight: 500 }}>{i.code}</td>
               <td>{i.description}</td>
+              <td className="nowrap" style={{ color: 'var(--text-muted)' }}>
+                {KIND_CORTO[i.kind] ?? i.kind}
+              </td>
               <td style={{ color: 'var(--text-muted)' }}>{i.categoria ?? '—'}</td>
               <td>{i.unit}</td>
               <td className="num">{usd(i.ultimo_precio_cotizado_usd)}</td>
@@ -131,6 +163,7 @@ export default function Items() {
                         category_id: full.category_id ?? '',
                         unit: full.unit ?? 'un',
                         spec: full.spec ?? '',
+                        kind: full.kind ?? 'insumo',
                       })
                       setAbierto(i)
                     }}
@@ -186,6 +219,17 @@ export default function Items() {
           submitting={saving}
         >
           {formError && <ErrorBox message={formError} />}
+
+          <Field
+            label="Tipo"
+            hint="Agrupa el catálogo: insumos de obra, servicios que se repiten todos los meses, y honorarios profesionales."
+          >
+            <select value={form.kind} onChange={set('kind')}>
+              {Object.entries(KINDS).map(([k, l]) => (
+                <option key={k} value={k}>{l}</option>
+              ))}
+            </select>
+          </Field>
 
           <Field label="Categoría">
             <select value={form.category_id} onChange={onCategory}>

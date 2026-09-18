@@ -115,14 +115,14 @@ export default function Capital() {
   }
 
   const columns = [
-    { key: 'date', label: 'Fecha' },
+    { key: 'movement_date', label: 'Fecha' },
     { key: 'type', label: 'Tipo' },
-    { key: 'investor', label: 'Inversor' },
-    { key: 'project', label: 'Proyecto' },
+    { key: 'investor', label: 'Inversor', sort: (m) => m.investor?.name },
+    { key: 'project', label: 'Proyecto', sort: (m) => m.project?.code },
     { key: 'amount', label: 'Importe', num: true },
-    { key: 'usd', label: 'USD', num: true },
+    { key: 'amount_usd', label: 'USD', num: true },
     { key: 'status', label: 'Estado' },
-    { key: 'actions', label: '' },
+    { key: 'actions', label: '', sort: false },
   ]
 
   return (

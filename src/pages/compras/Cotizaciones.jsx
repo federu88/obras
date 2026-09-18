@@ -104,15 +104,15 @@ export default function Cotizaciones() {
       ) : (
         <Table
           columns={[
-            { key: 'date', label: 'Fecha' },
-            { key: 'item', label: 'Item' },
-            { key: 'sup', label: 'Proveedor' },
+            { key: 'quote_date', label: 'Fecha' },
+            { key: 'item', label: 'Item', sort: (q) => q.item?.code },
+            { key: 'sup', label: 'Proveedor', sort: (q) => q.supplier?.name },
             { key: 'qty', label: 'Cant.', num: true },
-            { key: 'price', label: 'Precio un.', num: true },
-            { key: 'usd', label: 'USD/un', num: true },
-            { key: 'terms', label: 'Pago' },
-            { key: 'valid', label: 'Validez' },
-            { key: 'act', label: '' },
+            { key: 'unit_price', label: 'Precio un.', num: true },
+            { key: 'unit_price_usd', label: 'USD/un', num: true },
+            { key: 'payment_terms', label: 'Pago' },
+            { key: 'valid_until', label: 'Validez' },
+            { key: 'act', label: '', sort: false },
           ]}
           rows={quotes.data ?? []}
           empty="Todavía no hay cotizaciones registradas."

@@ -110,15 +110,15 @@ export default function Presupuesto({ projectId, onChange }) {
   )
 
   const columns = [
-    { key: 'cat', label: 'Categoría' },
-    { key: 'desc', label: 'Item' },
-    { key: 'qty', label: 'Cant.', num: true },
-    { key: 'price', label: 'Precio un.', num: true },
-    { key: 'budget', label: 'Budget', num: true },
-    { key: 'forecast', label: 'Forecast', num: true },
-    { key: 'actual', label: 'Actual', num: true },
-    { key: 'var', label: 'Desvío', num: true },
-    { key: 'act', label: '' },
+    { key: 'categoria', label: 'Categoría' },
+    { key: 'description', label: 'Item' },
+    { key: 'qty_original', label: 'Cant.', num: true },
+    { key: 'price_original_usd', label: 'Precio un.', num: true },
+    { key: 'total_original_usd', label: 'Budget', num: true },
+    { key: 'total_forecast_usd', label: 'Forecast', num: true },
+    { key: 'actual_usd', label: 'Actual', num: true },
+    { key: 'var', label: 'Desvío', num: true, sort: (r) => Number(r.actual_usd) - Number(r.total_original_usd) },
+    { key: 'act', label: '', sort: false },
   ]
 
   return (

@@ -57,14 +57,14 @@ export default function Gastos({ projectId, onChange }) {
       ) : (
         <Table
           columns={[
-            { key: 'date', label: 'Fecha' },
-            { key: 'desc', label: 'Concepto' },
-            { key: 'cat', label: 'Categoría' },
-            { key: 'sup', label: 'Proveedor' },
-            { key: 'amount', label: 'Importe', num: true },
-            { key: 'usd', label: 'USD', num: true },
+            { key: 'expense_date', label: 'Fecha' },
+            { key: 'description', label: 'Concepto' },
+            { key: 'cat', label: 'Categoría', sort: (e) => e.category?.name },
+            { key: 'supplier_name', label: 'Proveedor' },
+            { key: 'amount', label: 'Importe', num: true, sort: (e) => e.qty * e.unit_price },
+            { key: 'amount_usd', label: 'USD', num: true },
             { key: 'status', label: 'Estado' },
-            { key: 'act', label: '' },
+            { key: 'act', label: '', sort: false },
           ]}
           rows={expenses.data ?? []}
           empty="Todavía no hay gastos cargados."

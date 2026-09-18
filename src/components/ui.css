@@ -54,6 +54,24 @@ table.data th.num {
   text-align: right;
 }
 
+table.data th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+table.data th.sortable:hover {
+  color: var(--text);
+}
+
+table.data th.sorted {
+  color: var(--accent);
+}
+
+.sort-arrow {
+  margin-left: 4px;
+  font-size: 0.75rem;
+}
+
 table.data td {
   padding: 9px 10px;
   border-bottom: 1px solid var(--border);

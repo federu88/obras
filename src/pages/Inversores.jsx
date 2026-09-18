@@ -52,12 +52,12 @@ export default function Inversores() {
 
   const columns = [
     { key: 'name', label: 'Inversor' },
-    { key: 'state', label: 'Estado' },
-    { key: 'capital', label: 'Capital invertido', num: true },
-    { key: 'pend', label: 'Profit pendiente', num: true },
-    { key: 'cobr', label: 'Profit cobrado', num: true },
-    { key: 'proj', label: 'Proyectos', num: true },
-    { key: 'act', label: '' },
+    { key: 'is_active', label: 'Estado' },
+    { key: 'capital_invertido_usd', label: 'Capital invertido', num: true },
+    { key: 'profit_pendiente_usd', label: 'Profit pendiente', num: true },
+    { key: 'profit_cobrado_usd', label: 'Profit cobrado', num: true },
+    { key: 'proyectos_activos', label: 'Proyectos', num: true },
+    { key: 'act', label: '', sort: false },
   ]
 
   return (

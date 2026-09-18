@@ -57,11 +57,11 @@ export default function Proveedores() {
         <Table
           columns={[
             { key: 'name', label: 'Proveedor' },
-            { key: 'contact', label: 'Contacto' },
+            { key: 'contact_name', label: 'Contacto' },
             { key: 'phone', label: 'Teléfono' },
             { key: 'email', label: 'Email' },
-            { key: 'state', label: 'Estado' },
-            { key: 'act', label: '' },
+            { key: 'is_active', label: 'Estado' },
+            { key: 'act', label: '', sort: false },
           ]}
           rows={suppliers.data ?? []}
           empty="Todavía no hay proveedores cargados."

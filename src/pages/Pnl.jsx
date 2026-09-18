@@ -47,12 +47,12 @@ export default function Pnl() {
             columns={[
               { key: 'code', label: 'Código' },
               { key: 'name', label: 'Proyecto' },
-              { key: 'budget', label: 'Budget', num: true },
-              { key: 'forecast', label: 'Forecast', num: true },
-              { key: 'actual', label: 'Actual', num: true },
-              { key: 'comm', label: 'Comprometido', num: true },
-              { key: 'rev', label: 'Ingresos', num: true },
-              { key: 'profit', label: 'Profit proyectado', num: true },
+              { key: 'budget_usd', label: 'Budget', num: true },
+              { key: 'forecast_cost_usd', label: 'Forecast', num: true },
+              { key: 'actual_cost_usd', label: 'Actual', num: true },
+              { key: 'committed_cost_usd', label: 'Comprometido', num: true },
+              { key: 'revenue_usd', label: 'Ingresos', num: true },
+              { key: 'forecast_profit_usd', label: 'Profit proyectado', num: true },
             ]}
             rows={rows}
             empty="Todavía no hay proyectos."
