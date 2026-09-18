@@ -9,18 +9,23 @@ import { Drawer, Field, ErrorBox } from './ui'
  * alguien no puede corregir un dato.
  */
 
+/* El orden es el del flujo real de una obra, no alfabético. */
 export const PROJECT_STATUS = {
   idea: 'Idea',
   evaluacion: 'Evaluación',
   aprobado: 'Aprobado',
+  en_tramite_municipal: 'En trámite municipalidad',
   en_construccion: 'En construcción',
   terminado: 'Terminado',
+  en_proceso_venta: 'En proceso de venta',
   vendido: 'Vendido',
   cerrado: 'Cerrado',
 }
 
 const NUMERICOS = [
-  'surface_m2',
+  'lot_m2',
+  'covered_m2',
+  'semi_covered_m2',
   'budget_usd',
   'capital_required_usd',
   'target_sale_usd',
@@ -32,7 +37,9 @@ const VACIO = {
   name: '',
   location: '',
   house_type: '',
-  surface_m2: '',
+  lot_m2: '',
+  covered_m2: '',
+  semi_covered_m2: '',
   status: 'idea',
   planned_start: '',
   planned_finish: '',
@@ -118,8 +125,16 @@ export default function ProyectoForm({ project, onClose, onSave }) {
         <input value={form.house_type} onChange={set('house_type')} />
       </Field>
 
-      <Field label="Superficie (m²)">
-        <input type="number" step="0.01" min="0" value={form.surface_m2} onChange={set('surface_m2')} />
+      <Field label="Metros del lote">
+        <input type="number" step="0.01" min="0" value={form.lot_m2} onChange={set('lot_m2')} />
+      </Field>
+
+      <Field label="Metros cubiertos">
+        <input type="number" step="0.01" min="0" value={form.covered_m2} onChange={set('covered_m2')} />
+      </Field>
+
+      <Field label="Metros semicubiertos">
+        <input type="number" step="0.01" min="0" value={form.semi_covered_m2} onChange={set('semi_covered_m2')} />
       </Field>
 
       <Field label="Estado">

@@ -14,13 +14,17 @@ import ProyectoForm, { PROJECT_STATUS } from '../components/ProyectoForm'
 
 const TONO = {
   aprobado: 'warn',
+  en_tramite_municipal: 'warn',
   en_construccion: 'warn',
   terminado: 'ok',
+  en_proceso_venta: 'ok',
   vendido: 'ok',
 }
 
-const ACTIVOS = ['aprobado', 'en_construccion']
-const TERMINADOS = ['terminado', 'vendido', 'cerrado']
+/* Activo = la obra todavía se construye, incluido el trámite municipal.
+   Una casa terminada que se está vendiendo ya no consume obra. */
+const ACTIVOS = ['aprobado', 'en_tramite_municipal', 'en_construccion']
+const TERMINADOS = ['terminado', 'en_proceso_venta', 'vendido', 'cerrado']
 
 export default function Proyectos({ filter }) {
   const { canManage } = useAuth()

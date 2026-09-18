@@ -12,15 +12,7 @@ import Cronograma from './proyecto/Cronograma'
 import ProyectoForm from '../components/ProyectoForm'
 import { useAuth } from '../context/AuthContext'
 
-const STATUS = {
-  idea: 'Idea',
-  evaluacion: 'Evaluación',
-  aprobado: 'Aprobado',
-  en_construccion: 'En construcción',
-  terminado: 'Terminado',
-  vendido: 'Vendido',
-  cerrado: 'Cerrado',
-}
+import { PROJECT_STATUS as STATUS } from '../components/ProyectoForm'
 
 const TABS = [
   ['resumen', 'Resumen'],
@@ -88,7 +80,9 @@ export default function Proyecto() {
         <p style={{ margin: '4px 0 0', color: 'var(--text-muted)' }}>
           {p.code}
           {p.location && ` · ${p.location}`}
-          {p.surface_m2 && ` · ${p.surface_m2} m²`}
+          {p.lot_m2 && ` · lote ${p.lot_m2} m²`}
+          {p.covered_m2 && ` · cubiertos ${p.covered_m2} m²`}
+          {p.semi_covered_m2 && ` · semicubiertos ${p.semi_covered_m2} m²`}
           {p.planned_finish && ` · fin previsto ${date(p.planned_finish)}`}
         </p>
       </div>
