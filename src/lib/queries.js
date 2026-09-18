@@ -403,3 +403,53 @@ export const listProfiles = () =>
 
 export const updateProfileRole = (id, role) =>
   supabase.from('profiles').update({ role }).eq('id', id).select().single().then(unwrap)
+
+/* --- Día a día de obra ----------------------------------------------------- */
+
+/** Operación de cambio: mueve las dos cajas en una sola transacción. */
+export const registrarCambio = ({
+  fecha,
+  usd,
+  cotizacion,
+  cuentaUsd,
+  cuentaArs,
+  projectId,
+  nota,
+}) =>
+  supabase
+    .rpc('registrar_operacion_cambio', {
+      p_fecha: fecha,
+      p_usd: usd,
+      p_cotizacion: cotizacion,
+      p_cuenta_usd: cuentaUsd,
+      p_cuenta_ars: cuentaArs,
+      p_project_id: projectId ?? null,
+      p_nota: nota ?? null,
+    })
+    .then(unwrap)
+
+export const getGastoMensual = (projectId) =>
+  supabase
+    .from('gasto_mensual')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('month', { ascending: false })
+    .limit(6)
+    .then(unwrap)
+
+/** Últimos gastos de una obra, para la carga del día. */
+export const listGastosRecientes = (projectId, limit = 40) =>
+  supabase
+    .from('expenses')
+    .select(
+      `id, description, expense_date, qty, unit_price, currency, fx_usd, amount_usd,
+       status, supplier_name,
+       category:cost_categories ( id, name ),
+       supplier:suppliers ( id, name )`
+    )
+    .eq('project_id', projectId)
+    .neq('status', 'anulado')
+    .order('expense_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+    .then(unwrap)

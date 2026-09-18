@@ -21,6 +21,7 @@ const Icon = ({ d }) => (
 
 const ICONS = {
   dashboard: 'M3 13h8V3H3v10Zm10 8h8V11h-8v10ZM3 21h8v-6H3v6ZM13 9h8V3h-8v6Z',
+  obra: 'M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5',
   projects: 'M3 21V9l9-6 9 6v12M9 21v-7h6v7',
   investors: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87',
   finance: 'M3 3v18h18M7 15l4-5 3 3 5-7',
@@ -33,6 +34,7 @@ const ICONS = {
 /* Una sola definición de la navegación. */
 const NAV = [
   { to: '/', label: 'Dashboard', icon: 'dashboard', end: true },
+  { to: '/dia-a-dia', label: 'Día a día', icon: 'obra' },
   {
     to: '/proyectos',
     label: 'Proyectos',

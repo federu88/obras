@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from './lib/supabase'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import DiaADia from './pages/DiaADia'
 import Proyectos from './pages/Proyectos'
 import Proyecto from './pages/Proyecto'
 import Pnl from './pages/Pnl'
@@ -73,6 +74,7 @@ export default function App() {
         <Routes>
           <Route element={<Protected />}>
             <Route index element={<Dashboard />} />
+            <Route path="dia-a-dia" element={<DiaADia />} />
 
             <Route path="proyectos" element={<Proyectos />} />
             <Route path="proyectos/activos" element={<Proyectos filter="activos" />} />
