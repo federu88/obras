@@ -9,7 +9,7 @@ import Proyectos from './pages/Proyectos'
 import Proyecto from './pages/Proyecto'
 import Pnl from './pages/Pnl'
 import Cashflow from './pages/Cashflow'
-import Items from './pages/compras/Items'
+import Catalogo from './pages/catalogo/Catalogo'
 import Proveedores from './pages/compras/Proveedores'
 import Cotizaciones from './pages/compras/Cotizaciones'
 import Ordenes from './pages/compras/Ordenes'
@@ -92,9 +92,18 @@ export default function App() {
             <Route path="finanzas/caja" element={<Caja />} />
             <Route path="finanzas/dolar" element={<Dolar />} />
 
-            <Route path="compras" element={<Navigate to="/compras/items" replace />} />
-            <Route path="compras/items" element={<Items />} />
-            <Route path="compras/proveedores" element={<Proveedores />} />
+            <Route path="catalogo" element={<Navigate to="/catalogo/tecnicas" replace />} />
+            <Route path="catalogo/tecnicas" element={<Catalogo kind="insumo" />} />
+            <Route path="catalogo/gastos" element={<Catalogo kind="servicio" />} />
+            <Route path="catalogo/honorarios" element={<Catalogo kind="honorario" />} />
+            <Route path="catalogo/proveedores" element={<Proveedores />} />
+
+            {/* Fuera del menú, pero siguen accesibles: las cotizaciones
+                alimentan el historial de precios y las órdenes muestran el
+                circuito de compra. */}
+            <Route path="compras" element={<Navigate to="/catalogo/tecnicas" replace />} />
+            <Route path="compras/items" element={<Navigate to="/catalogo/tecnicas" replace />} />
+            <Route path="compras/proveedores" element={<Navigate to="/catalogo/proveedores" replace />} />
             <Route path="compras/cotizaciones" element={<Cotizaciones />} />
             <Route path="compras/ordenes" element={<Ordenes />} />
 

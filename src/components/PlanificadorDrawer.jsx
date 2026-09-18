@@ -17,7 +17,11 @@ import { Drawer, Field, ErrorBox } from './ui'
  * inventado.
  */
 
-const TIPOS = { insumo: 'Insumos', servicio: 'Servicios', honorario: 'Honorarios' }
+const TIPOS = {
+  insumo: 'Técnicas',
+  servicio: 'Gastos del proyecto',
+  honorario: 'Honorarios',
+}
 
 function precioReferencia(it) {
   const v =

@@ -24,9 +24,9 @@ const hoyIso = () => new Date().toISOString().slice(0, 10)
 /* Un solo catálogo con tipo, no tres catálogos. Agrupa sin fragmentar el
    historial de precios ni la comparación de proveedores. */
 const TIPOS = {
-  insumo: 'Insumos de obra',
-  servicio: 'Servicios — expensas, luz, gas, seguros',
-  honorario: 'Honorarios — escribanía, gestoría, arquitectura',
+  insumo: 'Técnicas',
+  servicio: 'Gastos del proyecto',
+  honorario: 'Honorarios',
 }
 
 /**
@@ -260,9 +260,9 @@ export default function DiaADia() {
                 value={g.kind}
                 onChange={(e) => setG((f) => ({ ...f, kind: e.target.value, item_id: '' }))}
               >
-                <option value="insumo">Insumo</option>
-                <option value="servicio">Servicio</option>
-                <option value="honorario">Honorario</option>
+                <option value="insumo">Técnicas</option>
+                <option value="servicio">Gastos del proyecto</option>
+                <option value="honorario">Honorarios</option>
               </select>
             </div>
 
