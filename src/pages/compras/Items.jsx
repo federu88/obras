@@ -8,10 +8,14 @@ import {
   listCostCategories,
   suggestItemCode,
   listSupplierPrices,
+  listItemPriceHistory,
+  createPricePoint,
+  listSuppliers,
+  fxRateAt,
 } from '../../lib/queries'
 import { usd, date } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
-import { PageHead, Table, Loading, ErrorBox, Drawer, Field } from '../../components/ui'
+import { PageHead, Table, Loading, ErrorBox, Drawer, Field, Badge } from '../../components/ui'
 
 /* Unidades reales. El catálogo actual tiene los 225 items en "Uni", y sin
    unidad no se puede comparar un precio entre proveedores. */
@@ -26,6 +30,20 @@ const KINDS = {
 const KIND_CORTO = { insumo: 'Insumo', servicio: 'Servicio', honorario: 'Honorario' }
 
 const EMPTY = { code: '', description: '', category_id: '', unit: 'un', spec: '', kind: 'insumo' }
+
+const FUENTE = {
+  referencia: ['Referencia', null],
+  cotizacion: ['Cotización', 'warn'],
+  compra: ['Compra', 'ok'],
+}
+
+const PRECIO_VACIO = {
+  price_date: new Date().toISOString().slice(0, 10),
+  unit_price: '',
+  currency: 'ARS',
+  supplier_id: '',
+  note: '',
+}
 
 export default function Items() {
   const { canManage } = useAuth()
@@ -42,6 +60,41 @@ export default function Items() {
     () => (expanded ? listSupplierPrices(expanded) : Promise.resolve(null)),
     [expanded]
   )
+  const historial = useAsync(
+    () => (expanded ? listItemPriceHistory(expanded) : Promise.resolve(null)),
+    [expanded]
+  )
+  const suppliers = useAsync(listSuppliers)
+
+  /* Registrar un precio agrega un punto al historial; no pisa los anteriores. */
+  const [precio, setPrecio] = useState(null)
+  const [guardandoPrecio, setGuardandoPrecio] = useState(false)
+
+  async function guardarPrecio() {
+    setGuardandoPrecio(true)
+    try {
+      const fx = precio.currency === 'ARS' ? await fxRateAt(precio.price_date) : null
+      if (precio.currency === 'ARS' && !fx) {
+        throw new Error('No hay cotización del dólar para esa fecha ni anterior.')
+      }
+      await createPricePoint({
+        item_id: expanded,
+        price_date: precio.price_date,
+        unit_price: Number(precio.unit_price),
+        currency: precio.currency,
+        fx_usd: fx,
+        supplier_id: precio.supplier_id || null,
+        note: precio.note || null,
+      })
+      setPrecio(null)
+      historial.reload()
+      items.reload()
+    } catch (err) {
+      setPrecio((p) => ({ ...p, error: err.message }))
+    } finally {
+      setGuardandoPrecio(false)
+    }
+  }
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -179,7 +232,74 @@ export default function Items() {
 
       {expanded && (
         <section style={{ marginTop: 20, display: 'grid', gap: 12 }}>
-          <h2>Precios por proveedor</h2>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            <h2>Historial de precios</h2>
+            {canManage && (
+              <button className="btn btn-primary" onClick={() => setPrecio(PRECIO_VACIO)}>
+                + Registrar precio
+              </button>
+            )}
+          </div>
+
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+            Las tres fuentes en una sola línea de tiempo. Nada se pisa: cada precio nuevo
+            es un punto más, y así se ve hacia dónde va el valor.
+          </p>
+
+          {historial.loading ? (
+            <Loading />
+          ) : (
+            <Table
+              columns={[
+                { key: 'fecha', label: 'Fecha' },
+                { key: 'fuente', label: 'Origen' },
+                { key: 'proveedor', label: 'Proveedor' },
+                { key: 'unit_price', label: 'Precio', num: true },
+                { key: 'unit_price_usd', label: 'USD', num: true },
+                { key: 'detalle', label: 'Detalle' },
+              ]}
+              rows={historial.data ?? []}
+              empty="Este item todavía no tiene precios registrados."
+              renderRow={(h, i) => {
+                const [label, tone] = FUENTE[h.fuente] ?? [h.fuente, null]
+                const prev = (historial.data ?? [])[i + 1]
+                const delta =
+                  prev && Number(prev.unit_price_usd) > 0
+                    ? (Number(h.unit_price_usd) - Number(prev.unit_price_usd)) /
+                      Number(prev.unit_price_usd)
+                    : null
+                return (
+                  <tr key={`${h.fuente}-${h.fecha}-${i}`}>
+                    <td className="nowrap">{date(h.fecha)}</td>
+                    <td><Badge tone={tone}>{label}</Badge></td>
+                    <td>{h.proveedor ?? '—'}</td>
+                    <td className="num">
+                      {new Intl.NumberFormat('es-AR').format(h.unit_price)} {h.currency}
+                    </td>
+                    <td className="num">
+                      {usd(h.unit_price_usd)}
+                      {delta != null && Math.abs(delta) > 0.001 && (
+                        <span className={delta > 0 ? 'var-neg' : 'var-pos'}>
+                          {' '}{delta > 0 ? '+' : ''}{(delta * 100).toFixed(1)}%
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ color: 'var(--text-muted)' }}>{h.detalle ?? '—'}</td>
+                  </tr>
+                )
+              }}
+            />
+          )}
+
+          <h2 style={{ marginTop: 8 }}>Comparativa de proveedores</h2>
           {prices.loading ? (
             <Loading />
           ) : (
@@ -258,6 +378,72 @@ export default function Items() {
           </Field>
 
           <Field label="Especificación"><input value={form.spec} onChange={set('spec')} /></Field>
+        </Drawer>
+      )}
+
+      {precio && (
+        <Drawer
+          title="Registrar precio"
+          submitLabel="Registrar"
+          onClose={() => setPrecio(null)}
+          onSubmit={guardarPrecio}
+          submitting={guardandoPrecio}
+        >
+          {precio.error && <ErrorBox message={precio.error} />}
+
+          <div className="notice">
+            Se agrega un punto al historial. No reemplaza ni borra los anteriores: eso es
+            lo que permite ver la tendencia.
+          </div>
+
+          <Field label="Fecha">
+            <input
+              type="date"
+              required
+              value={precio.price_date}
+              onChange={(e) => setPrecio((p) => ({ ...p, price_date: e.target.value }))}
+            />
+          </Field>
+
+          <Field label="Precio unitario">
+            <input
+              type="number"
+              step="0.0001"
+              min="0"
+              required
+              value={precio.unit_price}
+              onChange={(e) => setPrecio((p) => ({ ...p, unit_price: e.target.value }))}
+            />
+          </Field>
+
+          <Field label="Moneda" hint="Si es en pesos se convierte con el dólar de esa fecha.">
+            <select
+              value={precio.currency}
+              onChange={(e) => setPrecio((p) => ({ ...p, currency: e.target.value }))}
+            >
+              <option value="ARS">ARS</option>
+              <option value="USD">USD</option>
+            </select>
+          </Field>
+
+          <Field label="Proveedor" hint="Opcional: un precio de lista puede no tener proveedor.">
+            <select
+              value={precio.supplier_id}
+              onChange={(e) => setPrecio((p) => ({ ...p, supplier_id: e.target.value }))}
+            >
+              <option value="">—</option>
+              {(suppliers.data ?? []).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Detalle">
+            <input
+              value={precio.note}
+              onChange={(e) => setPrecio((p) => ({ ...p, note: e.target.value }))}
+            />
+          </Field>
         </Drawer>
       )}
     </div>

@@ -18,6 +18,7 @@ import Reportes from './pages/Reportes'
 import Configuracion from './pages/Configuracion'
 import Inversor from './pages/Inversor'
 import Caja from './pages/Caja'
+import Dolar from './pages/Dolar'
 import Inversores from './pages/Inversores'
 import Capital from './pages/Capital'
 
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="finanzas/pnl" element={<Pnl />} />
             <Route path="finanzas/capital" element={<Capital />} />
             <Route path="finanzas/caja" element={<Caja />} />
+            <Route path="finanzas/dolar" element={<Dolar />} />
 
             <Route path="compras" element={<Navigate to="/compras/items" replace />} />
             <Route path="compras/items" element={<Items />} />

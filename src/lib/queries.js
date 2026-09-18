@@ -496,3 +496,20 @@ export const getBudgetLine = (id) =>
 
 export const updateQuote = (id, patch) =>
   supabase.from('supplier_quotes').update(patch).eq('id', id).select().single().then(unwrap)
+
+/* --- Historial de precios --------------------------------------------------- */
+
+/** Las tres fuentes en una línea de tiempo: referencia, cotización y compra. */
+export const listItemPriceHistory = (itemId) =>
+  supabase
+    .from('item_price_history')
+    .select('*')
+    .eq('item_id', itemId)
+    .order('fecha', { ascending: false })
+    .then(unwrap)
+
+export const listItemTrends = () =>
+  supabase.from('item_price_trend').select('*').then(unwrap)
+
+export const createPricePoint = (payload) =>
+  supabase.from('item_price_points').insert(payload).select().single().then(unwrap)

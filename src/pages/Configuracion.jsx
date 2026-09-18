@@ -1,12 +1,8 @@
-import { useState } from 'react'
 import { useAsync } from '../lib/useAsync'
-import { listFxRates, createFxRate, updateFxRate, listProfiles, updateProfileRole } from '../lib/queries'
-import { backfill } from '../lib/fx'
+import { listProfiles, updateProfileRole } from '../lib/queries'
 import { date } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
-import { PageHead, Table, Loading, ErrorBox, Drawer, Field } from '../components/ui'
-
-const ARS = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+import { PageHead, Table, Loading, ErrorBox } from '../components/ui'
 
 const ROLES = {
   admin: 'Admin · acceso total',
@@ -16,57 +12,14 @@ const ROLES = {
 }
 
 export default function Configuracion() {
-  const { canManage, isAdmin, profile } = useAuth()
-  const [abierto, setAbierto] = useState(null)
-  const [form, setForm] = useState({
-    rate_date: new Date().toISOString().slice(0, 10),
-    ars_per_usd: '',
-    note: '',
-  })
-  const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState(null)
-  const [cargando, setCargando] = useState(null)
-  const [resultado, setResultado] = useState(null)
-
-  const rates = useAsync(listFxRates)
+  const { isAdmin, profile } = useAuth()
   const users = useAsync(listProfiles)
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-
-  async function save() {
-    setSaving(true)
-    setFormError(null)
-    try {
-      const payload = {
-        rate_date: form.rate_date,
-        ars_per_usd: Number(form.ars_per_usd),
-        note: form.note || 'Carga manual',
-      }
-      if (abierto === 'nuevo') await createFxRate({ ...payload, source: 'MEP' })
-      else await updateFxRate(abierto.id, payload)
-      setForm({ ...form, ars_per_usd: '', note: '' })
-      setAbierto(null)
-      rates.reload()
-    } catch (err) {
-      setFormError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function traerHistorico() {
-    setCargando({ revisadas: 0, total: 90 })
-    setResultado(null)
-    const r = await backfill(90, setCargando)
-    setCargando(null)
-    setResultado(r)
-    rates.reload()
-  }
 
   return (
     <div style={{ display: 'grid', gap: 24 }}>
       <PageHead
         title="Configuración"
-        subtitle="Tipo de cambio de referencia y datos de tu cuenta."
+        subtitle="Usuarios y accesos. El tipo de cambio tiene su propia pantalla, en Finanzas → Dólar."
       />
 
       <section className="card" style={{ display: 'grid', gap: 10 }}>
@@ -85,9 +38,9 @@ export default function Configuracion() {
         </div>
 
         <div className="notice notice-warning">
-          <strong>Cuando entre el primer inversor con usuario propio</strong>, ponele
-          rol <em>Investor</em> acá <strong>antes</strong> de que inicie sesión. Si queda
-          en Admin va a ver cuánto puso cada otro inversor, los precios de todos los
+          <strong>Cuando entre el primer inversor con usuario propio</strong>, ponele rol{' '}
+          <em>Investor</em> acá <strong>antes</strong> de que inicie sesión. Si queda en
+          Admin va a ver cuánto puso cada otro inversor, los precios de todos los
           proveedores, la caja completa y el margen del negocio.
         </div>
 
@@ -98,10 +51,10 @@ export default function Configuracion() {
         ) : (
           <Table
             columns={[
-              { key: 'u', label: 'Usuario' },
-              { key: 'e', label: 'Email' },
-              { key: 'r', label: 'Rol' },
-              { key: 'a', label: 'Alta' },
+              { key: 'full_name', label: 'Usuario' },
+              { key: 'email', label: 'Email' },
+              { key: 'role', label: 'Rol' },
+              { key: 'created_at', label: 'Alta' },
             ]}
             rows={users.data ?? []}
             empty="No hay usuarios."
@@ -134,128 +87,12 @@ export default function Configuracion() {
                     ROLES[u.role] ?? u.role
                   )}
                 </td>
-                <td>{date(u.created_at)}</td>
+                <td className="nowrap">{date(u.created_at)}</td>
               </tr>
             )}
           />
         )}
       </section>
-
-      <section style={{ display: 'grid', gap: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <div>
-            <h2>Tipo de cambio</h2>
-            <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-              Dólar MEP, valor de compra — el mismo criterio de tu planilla. Se trae solo al abrir la app.
-            </p>
-          </div>
-          {canManage && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn" onClick={traerHistorico} disabled={!!cargando}>
-                {cargando
-                  ? `Trayendo… ${cargando.revisadas}/${cargando.total}`
-                  : 'Traer últimos 90 días'}
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setForm({ rate_date: new Date().toISOString().slice(0, 10), ars_per_usd: '', note: '' })
-                  setAbierto('nuevo')
-                }}
-              >
-                + Cotización manual
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="notice">
-          <strong>No hace falta cargarlo todos los días.</strong> Cada importe usa la
-          cotización más reciente anterior o igual a su fecha, así que un hueco de
-          varios días no rompe nada: arrastra la última disponible. La carga
-          automática es para que los valores sean exactos, no para que el sistema
-          funcione.
-        </div>
-
-        {resultado && (
-          <div className="notice notice-warning">
-            Cargadas {resultado.cargadas} cotizaciones nuevas. {resultado.saltadas} ya
-            estaban.
-          </div>
-        )}
-
-        {rates.error && <ErrorBox message={rates.error} />}
-
-        {rates.loading ? (
-          <Loading />
-        ) : (
-          <Table
-            columns={[
-              { key: 'd', label: 'Fecha' },
-              { key: 'v', label: 'ARS por USD', num: true },
-              { key: 's', label: 'Fuente' },
-              { key: 'n', label: 'Detalle' },
-              { key: 'act', label: '' },
-            ]}
-            rows={rates.data ?? []}
-            empty="Todavía no hay cotizaciones cargadas. Probá con “Traer últimos 90 días”."
-            renderRow={(r) => (
-              <tr key={r.id}>
-                <td>{date(r.rate_date)}</td>
-                <td className="num">{ARS.format(r.ars_per_usd)}</td>
-                <td>{r.source}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{r.note ?? '—'}</td>
-                <td className="nowrap">
-                  {canManage && (
-                    <button
-                      className="icon-btn"
-                      onClick={() => {
-                        setForm({
-                          rate_date: r.rate_date,
-                          ars_per_usd: String(r.ars_per_usd),
-                          note: r.note ?? '',
-                        })
-                        setAbierto(r)
-                      }}
-                    >
-                      Editar
-                    </button>
-                  )}
-                </td>
-              </tr>
-            )}
-          />
-        )}
-      </section>
-
-      {abierto && (
-        <Drawer
-          title={abierto === 'nuevo' ? 'Cotización manual' : 'Editar cotización'}
-          submitLabel={abierto === 'nuevo' ? 'Guardar' : 'Guardar cambios'}
-          onClose={() => setAbierto(null)}
-          onSubmit={save}
-          submitting={saving}
-        >
-          {formError && <ErrorBox message={formError} />}
-          <Field label="Fecha">
-            <input type="date" required value={form.rate_date} onChange={set('rate_date')} />
-          </Field>
-          <Field
-            label="ARS por USD"
-            hint="Si hiciste una operación de cambio real, cargá esa cotización: es más precisa que la de referencia."
-          >
-            <input
-              type="number"
-              step="0.0001"
-              min="0.0001"
-              required
-              value={form.ars_per_usd}
-              onChange={set('ars_per_usd')}
-            />
-          </Field>
-          <Field label="Detalle"><input value={form.note} onChange={set('note')} /></Field>
-        </Drawer>
-      )}
     </div>
   )
 }
