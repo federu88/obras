@@ -7,6 +7,7 @@ import { Loading, ErrorBox, Badge, Kpi } from '../components/ui'
 import Presupuesto from './proyecto/Presupuesto'
 import Gastos from './proyecto/Gastos'
 import Ingresos from './proyecto/Ingresos'
+import Desvios from './proyecto/Desvios'
 
 const STATUS = {
   idea: 'Idea',
@@ -23,6 +24,7 @@ const TABS = [
   ['presupuesto', 'Presupuesto'],
   ['gastos', 'Gastos'],
   ['ingresos', 'Ingresos'],
+  ['desvios', 'Desvíos'],
 ]
 
 /** Desvío contra el budget original, con signo y color. Un sobrecosto es malo. */
@@ -155,6 +157,7 @@ export default function Proyecto() {
       {tab === 'presupuesto' && <Presupuesto projectId={id} onChange={pnl.reload} />}
       {tab === 'gastos' && <Gastos projectId={id} onChange={pnl.reload} />}
       {tab === 'ingresos' && <Ingresos projectId={id} onChange={pnl.reload} />}
+      {tab === 'desvios' && <Desvios projectId={id} />}
     </div>
   )
 }

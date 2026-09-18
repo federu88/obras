@@ -5,6 +5,7 @@ import {
   createBudgetLine,
   deleteBudgetLine,
   listCostCategories,
+  listItemsPlain,
 } from '../../lib/queries'
 import { usd, pct, variance } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -12,6 +13,7 @@ import { Table, Loading, ErrorBox, Drawer, Field } from '../../components/ui'
 
 const EMPTY = {
   category_id: '',
+  item_id: '',
   description: '',
   unit: 'un',
   qty_original: '',
@@ -39,6 +41,7 @@ export default function Presupuesto({ projectId, onChange }) {
 
   const lines = useAsync(() => listBudgetLines(projectId), [projectId])
   const categories = useAsync(listCostCategories)
+  const items = useAsync(listItemsPlain)
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -49,6 +52,7 @@ export default function Presupuesto({ projectId, onChange }) {
       await createBudgetLine({
         project_id: projectId,
         category_id: form.category_id || null,
+        item_id: form.item_id || null,
         description: form.description,
         unit: form.unit || 'un',
         qty_original: Number(form.qty_original || 0),
@@ -189,7 +193,31 @@ export default function Presupuesto({ projectId, onChange }) {
             </select>
           </Field>
 
-          <Field label="Item" hint="Ej: Porcelanato interior">
+          <Field
+            label="Item del catálogo"
+            hint="Vincularlo es lo que permite comparar el precio presupuestado contra las cotizaciones."
+          >
+            <select
+              value={form.item_id}
+              onChange={(e) => {
+                const item_id = e.target.value
+                const it = (items.data ?? []).find((i) => i.id === item_id)
+                setForm((f) => ({
+                  ...f,
+                  item_id,
+                  description: f.description || it?.description || '',
+                  unit: it?.unit || f.unit,
+                }))
+              }}
+            >
+              <option value="">Sin vincular</option>
+              {(items.data ?? []).map((i) => (
+                <option key={i.id} value={i.id}>{i.code} · {i.description}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Descripción" hint="Ej: Porcelanato interior">
             <input required value={form.description} onChange={set('description')} />
           </Field>
 

@@ -6,6 +6,8 @@ import {
   updateExpense,
   listCostCategories,
   listBudgetLines,
+  listItemsPlain,
+  listSuppliers,
   fxRateAt,
 } from '../../lib/queries'
 import { usd, date } from '../../lib/format'
@@ -24,6 +26,9 @@ const STATUS = {
 
 const EMPTY = {
   category_id: '',
+  item_id: '',
+  supplier_id: '',
+  purchase_stage: '',
   budget_line_id: '',
   description: '',
   supplier_name: '',
@@ -45,6 +50,8 @@ export default function Gastos({ projectId, onChange }) {
   const expenses = useAsync(() => listExpenses(projectId), [projectId])
   const categories = useAsync(listCostCategories)
   const budget = useAsync(() => listBudgetLines(projectId), [projectId])
+  const items = useAsync(listItemsPlain)
+  const suppliers = useAsync(listSuppliers)
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -67,6 +74,9 @@ export default function Gastos({ projectId, onChange }) {
         project_id: projectId,
         category_id: form.category_id || null,
         budget_line_id: form.budget_line_id || null,
+        item_id: form.item_id || null,
+        supplier_id: form.supplier_id || null,
+        purchase_stage: form.purchase_stage || null,
         description: form.description,
         supplier_name: form.supplier_name || null,
         status: form.status,
@@ -175,8 +185,51 @@ export default function Gastos({ projectId, onChange }) {
             </select>
           </Field>
 
+          <Field
+            label="Item del catálogo"
+            hint="Con item y proveedor, el gasto aparece además en Compras y alimenta el historial de precios."
+          >
+            <select
+              value={form.item_id}
+              onChange={(e) => {
+                const item_id = e.target.value
+                const it = (items.data ?? []).find((i) => i.id === item_id)
+                setForm((f) => ({ ...f, item_id, description: f.description || it?.description || '' }))
+              }}
+            >
+              <option value="">Sin vincular</option>
+              {(items.data ?? []).map((i) => (
+                <option key={i.id} value={i.id}>{i.code} · {i.description}</option>
+              ))}
+            </select>
+          </Field>
+
           <Field label="Proveedor">
+            <select value={form.supplier_id} onChange={set('supplier_id')}>
+              <option value="">Sin proveedor del catálogo</option>
+              {(suppliers.data ?? []).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Proveedor (texto libre)" hint="Solo si todavía no está normalizado.">
             <input value={form.supplier_name} onChange={set('supplier_name')} />
+          </Field>
+
+          <Field
+            label="Estado de compra"
+            hint="Si lo usás, el estado financiero se deriva de acá automáticamente."
+          >
+            <select value={form.purchase_stage} onChange={set('purchase_stage')}>
+              <option value="">No es una compra</option>
+              <option value="solicitada">Solicitada</option>
+              <option value="cotizada">Cotizada</option>
+              <option value="aprobada">Aprobada</option>
+              <option value="comprada">Comprada</option>
+              <option value="recibida">Recibida</option>
+              <option value="pagada">Pagada</option>
+            </select>
           </Field>
 
           <Field label="Estado">

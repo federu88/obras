@@ -221,3 +221,97 @@ export const listProjectCashflow = (projectId) =>
 /** Meses futuros que cierran en negativo: cuánta plata falta y cuándo. */
 export const listCashRequirements = () =>
   supabase.from('cash_requirements').select('*').order('month').then(unwrap)
+
+/* --- Proveedores ---------------------------------------------------------- */
+
+export const listSuppliers = () =>
+  supabase.from('suppliers').select('*').order('name').then(unwrap)
+
+export const createSupplier = (payload) =>
+  supabase.from('suppliers').insert(payload).select().single().then(unwrap)
+
+export const updateSupplier = (id, patch) =>
+  supabase.from('suppliers').update(patch).eq('id', id).select().single().then(unwrap)
+
+/* --- Catálogo de items ---------------------------------------------------- */
+
+/** Usa item_prices: trae el item con su historial de precios ya calculado. */
+export const listItems = () =>
+  supabase.from('item_prices').select('*').order('code').then(unwrap)
+
+export const listItemsPlain = () =>
+  supabase.from('items').select('id, code, description, unit').order('code').then(unwrap)
+
+export const createItem = (payload) =>
+  supabase.from('items').insert(payload).select().single().then(unwrap)
+
+export const suggestItemCode = (categoryId) =>
+  supabase.rpc('suggest_item_code', { p_category: categoryId }).then(unwrap)
+
+/* --- Cotizaciones --------------------------------------------------------- */
+
+export const listQuotes = ({ itemId } = {}) => {
+  let q = supabase
+    .from('supplier_quotes')
+    .select('*, item:items ( id, code, description, unit ), supplier:suppliers ( id, name )')
+    .order('quote_date', { ascending: false })
+    .limit(300)
+  if (itemId) q = q.eq('item_id', itemId)
+  return q.then(unwrap)
+}
+
+export const createQuote = (payload) =>
+  supabase.from('supplier_quotes').insert(payload).select().single().then(unwrap)
+
+/** Comparativa de proveedores para un item. */
+export const listSupplierPrices = (itemId) =>
+  supabase
+    .from('supplier_item_prices')
+    .select('*')
+    .eq('item_id', itemId)
+    .order('mejor_precio_usd')
+    .then(unwrap)
+
+/* --- Compras (gastos con item y proveedor) -------------------------------- */
+
+export const listPurchases = () =>
+  supabase
+    .from('expenses')
+    .select(
+      `id, description, expense_date, qty, unit_price, currency, fx_usd, amount_usd,
+       status, purchase_stage, payment_terms,
+       item:items ( id, code, description, unit ),
+       supplier:suppliers ( id, name ),
+       project:projects ( id, code, name )`
+    )
+    .not('item_id', 'is', null)
+    .order('expense_date', { ascending: false })
+    .limit(300)
+    .then(unwrap)
+
+export const updatePurchaseStage = (id, stage) =>
+  supabase
+    .from('expenses')
+    .update({ purchase_stage: stage })
+    .eq('id', id)
+    .select()
+    .single()
+    .then(unwrap)
+
+/* --- Análisis de desvíos --------------------------------------------------- */
+
+export const listProcurementVariance = (projectId) =>
+  supabase
+    .from('procurement_variance')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('categoria')
+    .then(unwrap)
+
+export const listVarianceByCategory = (projectId) =>
+  supabase
+    .from('variance_by_category')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('categoria')
+    .then(unwrap)

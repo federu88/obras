@@ -8,6 +8,10 @@ import Proyectos from './pages/Proyectos'
 import Proyecto from './pages/Proyecto'
 import Pnl from './pages/Pnl'
 import Cashflow from './pages/Cashflow'
+import Items from './pages/compras/Items'
+import Proveedores from './pages/compras/Proveedores'
+import Cotizaciones from './pages/compras/Cotizaciones'
+import Ordenes from './pages/compras/Ordenes'
 import Caja from './pages/Caja'
 import Inversores from './pages/Inversores'
 import Capital from './pages/Capital'
@@ -58,7 +62,6 @@ function Protected() {
 }
 
 const SOON = {
-  compras: ['Fase 4', 'Catálogo, proveedores, cotizaciones y análisis de desvíos.'],
   cronogramas: ['Fase 5', 'Gantt con plan vs real y desvíos de plazo.'],
   reportes: ['Fase 7', 'Reportes por inversor, por proyecto y consolidado.'],
 }
@@ -91,10 +94,10 @@ export default function App() {
             <Route path="finanzas/caja" element={<Caja />} />
 
             <Route path="compras" element={<Navigate to="/compras/items" replace />} />
-            <Route path="compras/items" element={soon('Items', 'compras')} />
-            <Route path="compras/proveedores" element={soon('Proveedores', 'compras')} />
-            <Route path="compras/cotizaciones" element={soon('Cotizaciones', 'compras')} />
-            <Route path="compras/ordenes" element={soon('Compras', 'compras')} />
+            <Route path="compras/items" element={<Items />} />
+            <Route path="compras/proveedores" element={<Proveedores />} />
+            <Route path="compras/cotizaciones" element={<Cotizaciones />} />
+            <Route path="compras/ordenes" element={<Ordenes />} />
 
             <Route path="cronogramas" element={soon('Cronogramas', 'cronogramas')} />
             <Route path="reportes" element={soon('Reportes', 'reportes')} />
