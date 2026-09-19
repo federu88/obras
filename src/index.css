@@ -188,6 +188,18 @@ button {
   border-color: var(--accent-hover);
 }
 
+/* Baja definitiva. Discreto hasta que se lo apunta: no invita al click. */
+.btn-danger {
+  border-color: var(--negative);
+  color: var(--negative);
+}
+
+.btn-danger:hover {
+  background: var(--negative);
+  border-color: var(--negative);
+  color: #fff;
+}
+
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;

@@ -66,6 +66,7 @@ const NAV = [
       { to: '/catalogo/tecnicas', label: 'Técnicas' },
       { to: '/catalogo/gastos', label: 'Gastos del proyecto' },
       { to: '/catalogo/honorarios', label: 'Honorarios' },
+      { to: '/catalogo/etapas', label: 'Etapas de obra' },
       { to: '/catalogo/proveedores', label: 'Proveedores' },
     ],
   },

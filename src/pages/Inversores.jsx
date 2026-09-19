@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAsync } from '../lib/useAsync'
-import { listInvestorSummary, createInvestor, updateInvestor, getInvestor } from '../lib/queries'
+import {
+  listInvestorSummary,
+  createInvestor,
+  updateInvestor,
+  getInvestor,
+  deleteInvestor,
+  countInvestorMovements,
+} from '../lib/queries'
 import { usd } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { PageHead, Table, Loading, ErrorBox, Badge, Drawer, Field } from '../components/ui'
@@ -15,12 +22,14 @@ export default function Inversores() {
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
+  /* Cuántos movimientos de capital tiene el inversor que se está editando. */
+  const [movimientos, setMovimientos] = useState(0)
 
   const investors = useAsync(listInvestorSummary)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
   async function abrirEdicion(id) {
-    const inv = await getInvestor(id)
+    const [inv, movs] = await Promise.all([getInvestor(id), countInvestorMovements(id)])
     setForm({
       name: inv.name ?? '',
       email: inv.email ?? '',
@@ -28,7 +37,36 @@ export default function Inversores() {
       joined_on: inv.joined_on ?? '',
       notes: inv.notes ?? '',
     })
+    setMovimientos(movs)
     setAbierto(inv)
+  }
+
+  async function eliminar() {
+    setSaving(true)
+    setFormError(null)
+    try {
+      await deleteInvestor(abierto.id)
+      setAbierto(null)
+      investors.reload()
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function desactivar() {
+    setSaving(true)
+    setFormError(null)
+    try {
+      await updateInvestor(abierto.id, { is_active: !abierto.is_active })
+      setAbierto(null)
+      investors.reload()
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function save() {
@@ -116,8 +154,37 @@ export default function Inversores() {
           onClose={() => setAbierto(null)}
           onSubmit={save}
           submitting={saving}
+          onDelete={abierto !== 'nuevo' && movimientos === 0 ? eliminar : undefined}
+          deleteLabel="Eliminar inversor"
         >
           {formError && <ErrorBox message={formError} />}
+
+          {abierto !== 'nuevo' && movimientos > 0 && (
+            <div className="notice">
+              Este inversor tiene{' '}
+              <strong>
+                {movimientos === 1 ? '1 movimiento de capital' : `${movimientos} movimientos de capital`}
+              </strong>
+              , así que no se puede eliminar: borrarlo dejaría esa plata sin dueño y
+              descuadraría el reparto. Si ya no participa, dalo de baja.{' '}
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={desactivar}
+                style={{ padding: 0, textDecoration: 'underline' }}
+              >
+                {abierto.is_active ? 'Marcarlo como inactivo' : 'Volver a marcarlo activo'}
+              </button>
+              .
+            </div>
+          )}
+
+          {abierto !== 'nuevo' && movimientos === 0 && (
+            <div className="notice">
+              No tiene ningún movimiento cargado, así que se puede eliminar sin que
+              quede nada colgado.
+            </div>
+          )}
 
           <Field
             label="Nombre"

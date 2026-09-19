@@ -8,6 +8,7 @@ import {
   getProjectProgress,
   listScheduleAlerts,
   listDependencyImpact,
+  aplicarPlantillaObra,
 } from '../../lib/queries'
 import { pct, date } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
@@ -122,6 +123,9 @@ export default function Cronograma({ projectId }) {
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
+  /* Alta masiva desde la plantilla de etapas del catálogo. */
+  const [plantilla, setPlantilla] = useState(null)
+  const [inicio, setInicio] = useState(new Date().toISOString().slice(0, 10))
 
   const tasks = useAsync(() => listTasks(projectId), [projectId])
   const progress = useAsync(() => getProjectProgress(projectId), [projectId])
@@ -174,6 +178,26 @@ export default function Cronograma({ projectId }) {
     reload()
   }
 
+  /**
+   * Genera el cronograma entero desde la plantilla de etapas.
+   *
+   * Las fechas las calcula la base, no el navegador: es la misma función de días
+   * hábiles que usa el resto del sistema, con los feriados argentinos cargados.
+   */
+  async function aplicarPlantilla() {
+    setSaving(true)
+    setFormError(null)
+    try {
+      await aplicarPlantillaObra(projectId, inicio)
+      setPlantilla(null)
+      reload()
+    } catch (err) {
+      setFormError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const rows = tasks.data ?? []
   const p = progress.data ?? {}
   const hoy = new Date().toISOString().slice(0, 10)
@@ -185,9 +209,25 @@ export default function Cronograma({ projectId }) {
           Días hábiles con feriados argentinos. El fin planificado se calcula solo.
         </p>
         {canManage && (
-          <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>+ Actividad</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn"
+              onClick={() => { setFormError(null); setPlantilla(true) }}
+            >
+              Cargar etapas estándar
+            </button>
+            <button className="btn btn-primary" onClick={() => { setForm(EMPTY); setAbierto('nuevo') }}>+ Actividad</button>
+          </div>
         )}
       </div>
+
+      {canManage && rows.length === 0 && !tasks.loading && (
+        <div className="notice">
+          Esta obra todavía no tiene cronograma. <strong>Cargar etapas estándar</strong>{' '}
+          genera las 50 etapas de una casa con sus fechas ya calculadas, a partir de la
+          fecha en que arranca la obra. Después se ajusta lo que haga falta.
+        </div>
+      )}
 
       {(tasks.error || progress.error) && <ErrorBox message={tasks.error || progress.error} />}
 
@@ -347,6 +387,45 @@ export default function Cronograma({ projectId }) {
             </section>
           )}
         </>
+      )}
+
+      {plantilla && (
+        <Drawer
+          title="Cargar etapas estándar"
+          submitLabel="Generar cronograma"
+          onClose={() => setPlantilla(null)}
+          onSubmit={aplicarPlantilla}
+          submitting={saving}
+        >
+          {formError && <ErrorBox message={formError} />}
+
+          <div className="notice">
+            Toma las etapas de <strong>Catálogo › Etapas de obra</strong> y las convierte
+            en el cronograma de esta obra, encadenando las fechas en días hábiles desde
+            la fecha de arranque. Después son actividades de esta obra como cualquier
+            otra: editarlas no toca la plantilla.
+          </div>
+
+          <Field
+            label="Fecha de arranque de la obra"
+            hint="Es el inicio de la primera etapa. Todo lo demás se calcula a partir de ahí."
+          >
+            <input
+              type="date"
+              required
+              value={inicio}
+              onChange={(e) => setInicio(e.target.value)}
+            />
+          </Field>
+
+          {rows.length > 0 && (
+            <div className="notice notice-warning">
+              Esta obra ya tiene {rows.length}{' '}
+              {rows.length === 1 ? 'actividad cargada' : 'actividades cargadas'}. Las
+              etapas se agregan al final, no reemplazan lo que ya está.
+            </div>
+          )}
+        </Drawer>
       )}
 
       {abierto && (

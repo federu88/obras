@@ -551,3 +551,50 @@ export const listReferences = (projectId) =>
 
 export const createReference = (payload) =>
   supabase.from('project_references').insert(payload).select().single().then(unwrap)
+
+/* ---------------------------------------------------------------------------
+ * Plantilla de etapas de obra
+ * ------------------------------------------------------------------------- */
+
+/** Los pasos estándar para construir una casa, en orden de ejecución. */
+export const listTaskTemplates = () =>
+  supabase.from('task_templates').select('*').order('sort_order').then(unwrap)
+
+export const createTaskTemplate = (payload) =>
+  supabase.from('task_templates').insert(payload).select().single().then(unwrap)
+
+export const updateTaskTemplate = (id, patch) =>
+  supabase.from('task_templates').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const deleteTaskTemplate = (id) =>
+  supabase.from('task_templates').delete().eq('id', id).then(unwrap)
+
+/** Genera el cronograma de una obra a partir de la plantilla. Devuelve cuántas creó. */
+export const aplicarPlantillaObra = (projectId, inicio) =>
+  supabase
+    .rpc('aplicar_plantilla_obra', { p_project: projectId, p_inicio: inicio })
+    .then(unwrap)
+
+/* ---------------------------------------------------------------------------
+ * Baja de inversores
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Cuántos movimientos de capital tiene un inversor.
+ *
+ * Un inversor con movimientos no se puede borrar: la FK lo impide, y con razón,
+ * porque borrarlo dejaría plata sin dueño. Sirve para decirlo antes de que el
+ * usuario apriete el botón, en vez de mostrarle un error de Postgres.
+ */
+export const countInvestorMovements = (investorId) =>
+  supabase
+    .from('capital_movements')
+    .select('id', { count: 'exact', head: true })
+    .eq('investor_id', investorId)
+    .then(({ error, count }) => {
+      if (error) throw new Error(error.message)
+      return count ?? 0
+    })
+
+export const deleteInvestor = (id) =>
+  supabase.from('investors').delete().eq('id', id).then(unwrap)

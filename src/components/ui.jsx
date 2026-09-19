@@ -139,7 +139,25 @@ export function Kpi({ label, value, hint }) {
 }
 
 /** Panel lateral para altas y ediciones. */
-export function Drawer({ title, onClose, onSubmit, submitting, children, submitLabel = 'Guardar' }) {
+/**
+ * Panel lateral de alta y edición.
+ *
+ * `onDelete` agrega una baja al pie. La confirmación la pide el propio botón en
+ * vez de un `confirm()` del navegador: el segundo click es deliberado, y el
+ * primero se deshace apretando en cualquier otro lado del panel.
+ */
+export function Drawer({
+  title,
+  onClose,
+  onSubmit,
+  submitting,
+  children,
+  submitLabel = 'Guardar',
+  onDelete,
+  deleteLabel = 'Eliminar',
+}) {
+  const [confirmando, setConfirmando] = useState(false)
+
   return (
     <>
       <div className="drawer-scrim" onClick={onClose} />
@@ -156,8 +174,21 @@ export function Drawer({ title, onClose, onSubmit, submitting, children, submitL
             ×
           </button>
         </div>
-        <div className="drawer-body">{children}</div>
+        <div className="drawer-body" onClick={() => confirmando && setConfirmando(false)}>
+          {children}
+        </div>
         <div className="drawer-foot">
+          {onDelete && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={submitting}
+              style={{ marginRight: 'auto' }}
+              onClick={() => (confirmando ? onDelete() : setConfirmando(true))}
+            >
+              {confirmando ? 'Confirmar: no se puede deshacer' : deleteLabel}
+            </button>
+          )}
           <button type="button" className="btn" onClick={onClose}>
             Cancelar
           </button>

@@ -10,6 +10,7 @@ import Proyecto from './pages/Proyecto'
 import Pnl from './pages/Pnl'
 import Cashflow from './pages/Cashflow'
 import Catalogo from './pages/catalogo/Catalogo'
+import Etapas from './pages/catalogo/Etapas'
 import Proveedores from './pages/compras/Proveedores'
 import Cotizaciones from './pages/compras/Cotizaciones'
 import Ordenes from './pages/compras/Ordenes'
@@ -96,6 +97,7 @@ export default function App() {
             <Route path="catalogo/tecnicas" element={<Catalogo kind="insumo" />} />
             <Route path="catalogo/gastos" element={<Catalogo kind="servicio" />} />
             <Route path="catalogo/honorarios" element={<Catalogo kind="honorario" />} />
+            <Route path="catalogo/etapas" element={<Etapas />} />
             <Route path="catalogo/proveedores" element={<Proveedores />} />
 
             {/* Fuera del menú, pero siguen accesibles: las cotizaciones
