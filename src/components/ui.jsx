@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import './ui.css'
 
 export function PageHead({ title, subtitle, action }) {
@@ -140,11 +140,18 @@ export function Kpi({ label, value, hint }) {
 
 /** Panel lateral para altas y ediciones. */
 /**
- * Panel lateral de alta y edición.
+ * Tarjeta de alta y edicion.
  *
- * `onDelete` agrega una baja al pie. La confirmación la pide el propio botón en
- * vez de un `confirm()` del navegador: el segundo click es deliberado, y el
- * primero se deshace apretando en cualquier otro lado del panel.
+ * NO se cierra al hacer click afuera. Suena a detalle y no lo es: cargar una
+ * obra son quince campos, y perderlos por un click al costado de la ventana es
+ * el tipo de error que hace que la gente deje de usar la herramienta. Para
+ * salir hay que decirlo: Cancelar, la cruz, o Escape.
+ *
+ * Y si ya se escribio algo, Cancelar pide confirmacion. Un click de mas cuando
+ * hay algo que perder; ninguno cuando no lo hay.
+ *
+ * `onDelete` agrega la baja al pie, con la misma confirmacion en el propio
+ * boton.
  */
 export function Drawer({
   title,
@@ -156,13 +163,35 @@ export function Drawer({
   onDelete,
   deleteLabel = 'Eliminar',
 }) {
-  const [confirmando, setConfirmando] = useState(false)
+  const [confirmandoBaja, setConfirmandoBaja] = useState(false)
+  const [confirmandoSalida, setConfirmandoSalida] = useState(false)
+  /* Alcanza con saber que alguien toco algo: no hace falta comparar contra el
+     valor original para decidir si vale la pena preguntar. */
+  const [tocado, setTocado] = useState(false)
+
+  const intentarCerrar = useCallback(() => {
+    if (!tocado) return onClose()
+    setConfirmandoSalida(true)
+  }, [tocado, onClose])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      intentarCerrar()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [intentarCerrar])
 
   return (
     <>
-      <div className="drawer-scrim" onClick={onClose} />
+      {/* Sin onClick: el fondo oscurece, no cierra. */}
+      <div className="drawer-scrim" />
       <form
         className="drawer"
+        onInput={() => setTocado(true)}
+        onChange={() => setTocado(true)}
         onSubmit={(e) => {
           e.preventDefault()
           onSubmit()
@@ -170,13 +199,21 @@ export function Drawer({
       >
         <div className="drawer-head">
           <h2>{title}</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Cerrar">
+          <button type="button" className="icon-btn" onClick={intentarCerrar} aria-label="Cerrar">
             ×
           </button>
         </div>
-        <div className="drawer-body" onClick={() => confirmando && setConfirmando(false)}>
+
+        <div
+          className="drawer-body"
+          onClick={() => {
+            if (confirmandoBaja) setConfirmandoBaja(false)
+            if (confirmandoSalida) setConfirmandoSalida(false)
+          }}
+        >
           {children}
         </div>
+
         <div className="drawer-foot">
           {onDelete && (
             <button
@@ -184,13 +221,17 @@ export function Drawer({
               className="btn btn-danger"
               disabled={submitting}
               style={{ marginRight: 'auto' }}
-              onClick={() => (confirmando ? onDelete() : setConfirmando(true))}
+              onClick={() => (confirmandoBaja ? onDelete() : setConfirmandoBaja(true))}
             >
-              {confirmando ? 'Confirmar: no se puede deshacer' : deleteLabel}
+              {confirmandoBaja ? 'Confirmar: no se puede deshacer' : deleteLabel}
             </button>
           )}
-          <button type="button" className="btn" onClick={onClose}>
-            Cancelar
+          <button
+            type="button"
+            className={confirmandoSalida ? 'btn btn-danger' : 'btn'}
+            onClick={() => (confirmandoSalida ? onClose() : intentarCerrar())}
+          >
+            {confirmandoSalida ? 'Descartar lo escrito' : 'Cancelar'}
           </button>
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? 'Guardando…' : submitLabel}
