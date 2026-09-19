@@ -57,6 +57,7 @@ export default function PlanificadorDrawer({ projectId, onClose, onSaved }) {
   }, [items.data, busqueda, tipo, hayTipos])
 
   const marcados = Object.entries(elegidos)
+  const sinFecha = marcados.filter(([, v]) => !v.fecha).length
   const total = marcados.reduce((a, [id, v]) => {
     const it = (items.data ?? []).find((x) => x.item_id === id)
     return a + Number(v.qty || 0) * precioReferencia(it ?? {})
@@ -72,8 +73,32 @@ export default function PlanificadorDrawer({ projectId, onClose, onSaved }) {
     })
   }
 
+  /**
+   * Elegir la actividad completa la fecha sola, desde el cronograma.
+   *
+   * Es el punto de toda la planificacion: el item se paga cuando arranca la
+   * etapa que lo usa. Escribir las dos cosas a mano es pedir que no coincidan,
+   * y una fecha vacia deja la linea fuera del cashflow sin avisar.
+   *
+   * Si despues se corrige la fecha a mano, queda la corregida: la etapa da el
+   * punto de partida, no la ultima palabra.
+   */
   const editar = (id, campo) => (ev) =>
-    setElegidos((e) => ({ ...e, [id]: { ...e[id], [campo]: ev.target.value } }))
+    setElegidos((e) => {
+      const v = { ...e[id], [campo]: ev.target.value }
+      if (campo === 'task_id') {
+        const t = (tasks.data ?? []).find((x) => x.task_id === ev.target.value)
+        if (t?.planned_start) v.fecha = t.planned_start
+      }
+      return { ...e, [id]: v }
+    })
+
+  /** Misma fecha para todo lo marcado, para no cargarla item por item. */
+  function fecharTodo(valor) {
+    setElegidos((e) =>
+      Object.fromEntries(Object.entries(e).map(([id, v]) => [id, { ...v, fecha: valor }]))
+    )
+  }
 
   async function guardar() {
     setGuardando(true)
@@ -139,9 +164,27 @@ export default function PlanificadorDrawer({ projectId, onClose, onSaved }) {
       )}
 
       {marcados.length > 0 && (
-        <div className="notice notice-warning">
-          {marcados.length} item(s) · estimado <strong>{usd(total)}</strong> según el
-          historial de precios
+        <div className="notice notice-warning" style={{ display: 'grid', gap: 8 }}>
+          <div>
+            {marcados.length} item(s) · estimado <strong>{usd(total)}</strong> según el
+            historial de precios
+          </div>
+
+          {sinFecha > 0 && (
+            <div>
+              <strong>
+                {sinFecha === 1 ? '1 sin fecha prevista' : `${sinFecha} sin fecha prevista`}
+              </strong>
+              : sin fecha la línea no aparece en el cashflow, así que esa plata se
+              necesita pero nadie la ve venir. Elegí la actividad y la fecha se completa
+              sola, o poné una para todas:{' '}
+              <input
+                type="date"
+                onChange={(e) => e.target.value && fecharTodo(e.target.value)}
+                style={{ marginLeft: 4 }}
+              />
+            </div>
+          )}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAsync } from '../../lib/useAsync'
 import {
   listBudgetLines,
@@ -14,6 +14,8 @@ import { usd, pct, date, variance } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { Table, Loading, ErrorBox, Drawer, Field } from '../../components/ui'
 import PlanificadorDrawer from '../../components/PlanificadorDrawer'
+
+const MES = new Intl.DateTimeFormat('es-AR', { month: 'short', year: 'numeric' })
 
 const EMPTY = {
   category_id: '',
@@ -113,6 +115,26 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
   }
 
   const rows = lines.data ?? []
+
+  /* Una linea sin fecha prevista es plata que se va a gastar y que el cashflow
+     no ve venir. No es un error de carga que se note solo: hay que decirlo. */
+  const sinFecha = rows.filter((r) => !r.planned_date)
+  const montoSinFecha = sinFecha.reduce((a, r) => a + Number(r.total_forecast_usd || 0), 0)
+
+  /* Lo previsto mes a mes, con lo que ya se ejecuto descontado. Es la misma
+     cuenta que hace la vista de cashflow, mostrada donde se carga el dato para
+     que el efecto de poner una fecha se vea al instante. */
+  const porMes = useMemo(() => {
+    const m = new Map()
+    for (const r of rows) {
+      if (!r.planned_date) continue
+      const mes = String(r.planned_date).slice(0, 7)
+      const pendiente = Number(r.pendiente_usd || 0)
+      if (pendiente <= 0) continue
+      m.set(mes, (m.get(mes) ?? 0) + pendiente)
+    }
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b))
+  }, [rows])
   const totals = rows.reduce(
     (a, r) => ({
       original: a.original + Number(r.total_original_usd ?? 0),
@@ -164,6 +186,40 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
           </div>
         )}
       </div>
+
+      {sinFecha.length > 0 && (
+        <div className="notice notice-warning">
+          <strong>
+            {sinFecha.length === 1
+              ? '1 línea sin fecha prevista'
+              : `${sinFecha.length} líneas sin fecha prevista`}
+            , por {usd(montoSinFecha)}.
+          </strong>{' '}
+          Esa plata se va a gastar, pero el cashflow no la ve venir: no aparece en la
+          necesidad de caja de ningún mes. Editá la línea y poné la fecha, o asignale una
+          actividad del cronograma.
+        </div>
+      )}
+
+      {porMes.length > 0 && (
+        <section style={{ display: 'grid', gap: 8 }}>
+          <h2>Lo que falta gastar, mes a mes</h2>
+          <div className="mes-grid">
+            {porMes.map(([mes, monto]) => (
+              <div className="card" key={mes} style={{ padding: '10px 14px' }}>
+                <div className="kpi-label">{MES.format(new Date(`${mes}-01T00:00:00`))}</div>
+                <div className="num" style={{ fontSize: '1.0625rem', fontWeight: 600 }}>
+                  {usd(monto)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+            Solo lo pendiente: lo que ya se ejecutó no se cuenta dos veces. Es lo mismo
+            que alimenta Finanzas › Cashflow, pero acá al lado de donde se carga la fecha.
+          </p>
+        </section>
+      )}
 
       {lines.error && <ErrorBox message={lines.error} />}
 
