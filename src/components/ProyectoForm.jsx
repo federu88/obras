@@ -32,6 +32,11 @@ const NUMERICOS = [
   'broker_fee_pct',
 ]
 
+export const PROJECT_KINDS = {
+  construccion: 'Construcción desde cero',
+  remodelacion: 'Remodelación',
+}
+
 export const PROJECT_MODELS = {
   desarrollo: 'Desarrollo propio (se vende y se reparte)',
   encargo: 'Obra por encargo (la paga un cliente)',
@@ -41,6 +46,7 @@ const VACIO = {
   code: '',
   name: '',
   model: 'desarrollo',
+  kind: 'construccion',
   location: '',
   house_type: '',
   lot_m2: '',
@@ -70,6 +76,7 @@ function desdeProyecto(p) {
   f.broker_fee_pct = p.broker_fee_pct == null ? '2.5' : String(Number(p.broker_fee_pct) * 100)
   f.status = p.status ?? 'idea'
   f.model = p.model ?? 'desarrollo'
+  f.kind = p.kind ?? 'construccion'
   return f
 }
 
@@ -150,6 +157,17 @@ export default function ProyectoForm({ project, onClose, onSave }) {
       >
         <select value={form.model} onChange={set('model')}>
           {Object.entries(PROJECT_MODELS).map(([k, label]) => (
+            <option key={k} value={k}>{label}</option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
+        label="Tipo de obra"
+        hint="Una remodelación no tiene pilotes ni encadenado: las etapas que le sirven son otras."
+      >
+        <select value={form.kind} onChange={set('kind')}>
+          {Object.entries(PROJECT_KINDS).map(([k, label]) => (
             <option key={k} value={k}>{label}</option>
           ))}
         </select>

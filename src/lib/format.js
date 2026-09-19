@@ -93,3 +93,19 @@ export function variance(actual, baseline) {
   const rel = Number(baseline) === 0 ? null : abs / Number(baseline)
   return { abs, rel }
 }
+
+/**
+ * Forma comparable de un texto: sin mayúsculas, sin acentos, sin espacios de
+ * más. "Bidet", "bídet" y " BIDET " dan todos "bidet".
+ *
+ * Tiene que dar lo mismo que normalizar() en la base, porque la base es la que
+ * realmente impide el duplicado. Esto solo sirve para avisar antes de guardar,
+ * en vez de dejar que el usuario descubra el choque al apretar Guardar.
+ */
+export const normalizar = (s) =>
+  (s ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')

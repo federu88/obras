@@ -772,3 +772,39 @@ export const getEncargoSummary = () =>
 /** Una fila por obra por encargo, con avance certificado y resultado. */
 export const listEncargoHealth = () =>
   supabase.from('encargo_health').select('*').order('code').then(unwrap)
+
+/* ---------------------------------------------------------------------------
+ * El catálogo del catálogo: marcas y tipos de item
+ *
+ * Dos textos que se escriben distinto pero significan lo mismo no pueden ser
+ * dos filas. Las funciones resolver_* devuelven el id del que ya existe si el
+ * nombre normalizado coincide, y recién si no existe lo crean.
+ * ------------------------------------------------------------------------- */
+
+export const listBrands = () =>
+  supabase.from('brands').select('*').order('name').then(unwrap)
+
+export const listItemTypes = () =>
+  supabase.from('item_types').select('*').order('name').then(unwrap)
+
+/** Uso y rango de precios de cada tipo. Sirve para comparar lo que hace lo mismo. */
+export const listItemTypeUsage = () =>
+  supabase.from('item_type_usage').select('*').order('tipo').then(unwrap)
+
+export const resolverMarca = (name) =>
+  supabase.rpc('resolver_marca', { p_name: name }).then(unwrap)
+
+export const resolverTipoItem = (name) =>
+  supabase.rpc('resolver_tipo_item', { p_name: name }).then(unwrap)
+
+export const updateItemType = (id, patch) =>
+  supabase.from('item_types').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const updateBrand = (id, patch) =>
+  supabase.from('brands').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const deleteItemType = (id) =>
+  supabase.from('item_types').delete().eq('id', id).then(unwrap)
+
+export const deleteBrand = (id) =>
+  supabase.from('brands').delete().eq('id', id).then(unwrap)

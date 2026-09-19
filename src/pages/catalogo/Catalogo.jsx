@@ -12,8 +12,12 @@ import {
   createPricePoint,
   listSuppliers,
   fxRateAt,
+  listBrands,
+  listItemTypes,
+  resolverMarca,
+  resolverTipoItem,
 } from '../../lib/queries'
-import { usd, pct, date } from '../../lib/format'
+import { usd, pct, date, normalizar } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { PageHead, Table, Loading, ErrorBox, Drawer, Field, Badge } from '../../components/ui'
 
@@ -52,7 +56,48 @@ const vacio = (kind) => ({
   unit: 'un',
   spec: '',
   kind,
+  marca: '',
+  tipo: '',
+  model_code: '',
 })
+
+/**
+ * Campo de texto que apunta a una lista canonica.
+ *
+ * El problema que resuelve: si cada uno escribe el nombre a mano, "Bidet" y
+ * "bidet" terminan siendo dos cosas distintas y los precios dejan de ser
+ * comparables. Acá se compara por la forma normalizada mientras se escribe, y
+ * si coincide con algo que ya existe se avisa y se usa ESE, con la grafia
+ * original. Lo nuevo se crea solo cuando de verdad es nuevo.
+ *
+ * El aviso es una cortesia: quien impide el duplicado es el indice unico de la
+ * base, que está sobre la forma normalizada y no sobre el texto.
+ */
+function CampoCanonico({ label, hint, value, onChange, opciones, listId }) {
+  const n = normalizar(value)
+  const existente = n ? opciones.find((o) => normalizar(o.name) === n) : null
+  const esNuevo = Boolean(n) && !existente
+
+  return (
+    <Field label={label} hint={hint}>
+      <input list={listId} value={value} onChange={(e) => onChange(e.target.value)} />
+      <datalist id={listId}>
+        {opciones.map((o) => <option key={o.id} value={o.name} />)}
+      </datalist>
+      {existente && normalizar(existente.name) === n && existente.name !== value.trim() && (
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          Ya existe como <strong>{existente.name}</strong>: se va a usar ese, no se
+          crea uno nuevo.
+        </span>
+      )}
+      {esNuevo && (
+        <span style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>
+          Es nuevo: se va a agregar a la lista.
+        </span>
+      )}
+    </Field>
+  )
+}
 
 const PRECIO_VACIO = {
   price_date: new Date().toISOString().slice(0, 10),
@@ -102,10 +147,15 @@ export default function Catalogo({ kind = 'insumo' }) {
       return (
         String(i.code).toLowerCase().includes(q) ||
         String(i.description).toLowerCase().includes(q) ||
-        String(i.categoria ?? '').toLowerCase().includes(q)
+        String(i.categoria ?? '').toLowerCase().includes(q) ||
+        String(i.marca ?? '').toLowerCase().includes(q) ||
+        String(i.tipo ?? '').toLowerCase().includes(q)
       )
     })
   }, [items.data, busqueda, kind, hayTipos])
+
+  const marcas = useAsync(listBrands)
+  const tipos = useAsync(listItemTypes)
 
   async function onCategory(e) {
     const category_id = e.target.value
@@ -123,6 +173,13 @@ export default function Catalogo({ kind = 'insumo' }) {
     setSaving(true)
     setFormError(null)
     try {
+      /* Resolver primero: devuelve el id del que ya existe si el nombre
+         normalizado coincide, y solo crea cuando de verdad es nuevo. */
+      const [brand_id, item_type_id] = await Promise.all([
+        form.marca ? resolverMarca(form.marca) : null,
+        form.tipo ? resolverTipoItem(form.tipo) : null,
+      ])
+
       const payload = {
         code: form.code,
         description: form.description,
@@ -130,12 +187,17 @@ export default function Catalogo({ kind = 'insumo' }) {
         unit: form.unit,
         spec: form.spec || null,
         kind: form.kind,
+        brand_id,
+        item_type_id,
+        model_code: form.model_code || null,
       }
       if (abierto === 'nuevo') await createItem(payload)
       else await updateItem(abierto.item_id, payload)
       setForm(vacio(kind))
       setAbierto(null)
       items.reload()
+      marcas.reload()
+      tipos.reload()
     } catch (err) {
       setFormError(err.message)
     } finally {
@@ -222,6 +284,8 @@ export default function Catalogo({ kind = 'insumo' }) {
           columns={[
             { key: 'code', label: 'Código' },
             { key: 'description', label: 'Item' },
+            { key: 'marca', label: 'Marca' },
+            { key: 'tipo', label: 'Qué es' },
             { key: 'categoria', label: 'Categoría' },
             { key: 'unit', label: 'Unidad' },
             { key: 'precio_actual_usd', label: 'Precio vigente', num: true },
@@ -246,6 +310,8 @@ export default function Catalogo({ kind = 'insumo' }) {
               >
                 <td style={{ fontWeight: 500 }}>{i.code}</td>
                 <td>{i.description}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{i.marca ?? '—'}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{i.tipo ?? '—'}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{i.categoria ?? '—'}</td>
                 <td>{i.unit}</td>
                 <td className="num" style={{ fontWeight: 600 }}>
@@ -287,6 +353,11 @@ export default function Catalogo({ kind = 'insumo' }) {
                             unit: full.unit ?? 'un',
                             spec: full.spec ?? '',
                             kind: full.kind ?? kind,
+                            /* La fila del listado ya trae los nombres
+                               resueltos; el registro crudo solo los ids. */
+                            marca: i.marca ?? '',
+                            tipo: i.tipo ?? '',
+                            model_code: full.model_code ?? '',
                           })
                           setAbierto(i)
                         }}
@@ -432,6 +503,28 @@ export default function Catalogo({ kind = 'insumo' }) {
                 <option key={k} value={k}>{v.titulo}</option>
               ))}
             </select>
+          </Field>
+
+          <CampoCanonico
+            label="Marca"
+            hint="El fabricante, no el proveedor: Ferrum hace el bidet, Panamericana te lo vende."
+            value={form.marca}
+            onChange={(v) => setForm((f) => ({ ...f, marca: v }))}
+            opciones={marcas.data ?? []}
+            listId="lista-marcas"
+          />
+
+          <CampoCanonico
+            label="Qué es"
+            hint="El tipo genérico: Bidet, Bacha, Caldera. Es lo que permite comparar precios entre artículos que hacen lo mismo."
+            value={form.tipo}
+            onChange={(v) => setForm((f) => ({ ...f, tipo: v }))}
+            opciones={tipos.data ?? []}
+            listId="lista-tipos"
+          />
+
+          <Field label="Código del fabricante" hint="El que figura en el catálogo de la marca. Ej: BKM1B.">
+            <input value={form.model_code} onChange={set('model_code')} />
           </Field>
 
           <Field label="Especificación">
