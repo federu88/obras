@@ -528,3 +528,26 @@ export const listPlanDeObra = (projectId) =>
 /** Alta masiva: el arquitecto elige muchos items de una vez. */
 export const createBudgetLines = (rows) =>
   supabase.from('budget_lines').insert(rows).select().then(unwrap)
+
+/* --- Conciliación ----------------------------------------------------------- */
+
+/** Lo que dicen las planillas contra lo que está cargado, concepto por concepto. */
+export const listReconciliation = (projectId) => {
+  let q = supabase.from('project_reconciliation').select('*').order('concepto')
+  if (projectId) q = q.eq('project_id', projectId)
+  return q.then(unwrap)
+}
+
+export const listConciliacionResumen = () =>
+  supabase.from('conciliacion_resumen').select('*').order('code').then(unwrap)
+
+export const listReferences = (projectId) =>
+  supabase
+    .from('project_references')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('reference_date', { ascending: false })
+    .then(unwrap)
+
+export const createReference = (payload) =>
+  supabase.from('project_references').insert(payload).select().single().then(unwrap)

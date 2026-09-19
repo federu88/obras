@@ -9,6 +9,7 @@ import Gastos from './proyecto/Gastos'
 import Ingresos from './proyecto/Ingresos'
 import Desvios from './proyecto/Desvios'
 import Cronograma from './proyecto/Cronograma'
+import Conciliacion from './proyecto/Conciliacion'
 import ProyectoForm from '../components/ProyectoForm'
 import { useAuth } from '../context/AuthContext'
 
@@ -21,6 +22,7 @@ const TABS = [
   ['ingresos', 'Ingresos'],
   ['desvios', 'Desvíos'],
   ['cronograma', 'Cronograma'],
+  ['conciliacion', 'Conciliación'],
 ]
 
 /** Desvío contra el budget original, con signo y color. Un sobrecosto es malo. */
@@ -171,6 +173,7 @@ export default function Proyecto() {
       {tab === 'ingresos' && <Ingresos projectId={id} onChange={pnl.reload} />}
       {tab === 'desvios' && <Desvios projectId={id} />}
       {tab === 'cronograma' && <Cronograma projectId={id} />}
+      {tab === 'conciliacion' && <Conciliacion projectId={id} />}
 
       {editando && (
         <ProyectoForm
