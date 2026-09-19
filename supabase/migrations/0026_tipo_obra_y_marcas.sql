@@ -202,15 +202,23 @@ begin
     from public.items
     where description like '% - %'
     group by 1
+  ),
+  candidatas as (
+    -- distinct on la forma normalizada: si en los nombres conviven "Ferrum" y
+    -- "FERRUM", las dos quieren crear la misma marca y chocarian contra el
+    -- indice unico. Se queda la grafia mas corta, que suele ser la limpia.
+    select distinct on (public.normalizar(marca)) marca
+    from prefijos
+    where usos >= 3
+      and array_length(regexp_split_to_array(marca, '\s+'), 1) <= 2
+      and marca <> ''
+    order by public.normalizar(marca), length(marca), marca
   )
   insert into public.brands (name)
-  select marca from prefijos
-  where usos >= 3
-    and array_length(regexp_split_to_array(marca, '\s+'), 1) <= 2
-    and marca <> ''
-    and not exists (
-      select 1 from public.brands b where b.normalized = public.normalizar(prefijos.marca)
-    );
+  select c.marca from candidatas c
+  where not exists (
+    select 1 from public.brands b where b.normalized = public.normalizar(c.marca)
+  );
   get diagnostics n_marcas = row_count;
 
   update public.items i
@@ -239,9 +247,9 @@ select
   t.unit,
   count(i.id)       as items,
   count(distinct i.brand_id) as marcas,
-  min(p.unit_price_usd)          as precio_min_usd,
-  max(p.unit_price_usd)          as precio_max_usd,
-  round(avg(p.unit_price_usd), 2) as precio_prom_usd
+  min(p.precio_actual_usd)           as precio_min_usd,
+  max(p.precio_actual_usd)           as precio_max_usd,
+  round(avg(p.precio_actual_usd), 2) as precio_prom_usd
 from public.item_types t
 left join public.items i on i.item_type_id = t.id
 left join public.item_latest_price p on p.item_id = i.id
