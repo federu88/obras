@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAsync } from '../lib/useAsync'
 import {
@@ -5,7 +6,9 @@ import {
   listProjectHealth,
   listCashRequirements,
   listInvestorSummary,
+  getEncargoSummary,
 } from '../lib/queries'
+import DashboardEncargo from './DashboardEncargo'
 import { usd, pct } from '../lib/format'
 import { PageHead, Table, Loading, ErrorBox, Badge, Kpi } from '../components/ui'
 
@@ -13,15 +16,22 @@ const MES = new Intl.DateTimeFormat('es-AR', { month: 'short', year: 'numeric' }
 const mes = (d) => MES.format(new Date(d + 'T00:00:00'))
 
 export default function Dashboard() {
+  const [negocio, setNegocio] = useState('desarrollo')
+
   const summary = useAsync(getBusinessSummary)
   const health = useAsync(listProjectHealth)
   const requirements = useAsync(listCashRequirements)
   const investors = useAsync(listInvestorSummary)
+  const encargo = useAsync(getEncargoSummary)
 
   const loading = summary.loading || health.loading
   const error = summary.error || health.error
 
   const s = summary.data ?? {}
+  /* El selector aparece solo si hay obras por encargo VISIBLES para quien mira.
+     Para un inversor esto vuelve cero, y entonces ni se entera de que existe
+     el otro negocio: no hay pestaña vacía que invite a preguntar. */
+  const hayEncargo = (encargo.data?.obras_total ?? 0) > 0
   const proyectos = health.data ?? []
   const conProblemas = proyectos.filter((p) => p.problema_costo || p.problema_plazo)
   const necesidades = requirements.data ?? []
@@ -32,12 +42,35 @@ export default function Dashboard() {
     <div style={{ display: 'grid', gap: 24 }}>
       <PageHead
         title="Dashboard"
-        subtitle="Posición consolidada del negocio. Todos los importes en USD."
+        subtitle={
+          hayEncargo
+            ? 'Dos negocios distintos, con indicadores distintos. Todos los importes en USD.'
+            : 'Posición consolidada del negocio. Todos los importes en USD.'
+        }
       />
 
-      {error && <ErrorBox message={error} />}
+      {hayEncargo && (
+        <div className="tabs">
+          <button
+            className={`tab${negocio === 'desarrollo' ? ' active' : ''}`}
+            onClick={() => setNegocio('desarrollo')}
+          >
+            Desarrollo propio
+          </button>
+          <button
+            className={`tab${negocio === 'encargo' ? ' active' : ''}`}
+            onClick={() => setNegocio('encargo')}
+          >
+            Obra por encargo
+          </button>
+        </div>
+      )}
 
-      {loading ? (
+      {negocio === 'encargo' && <DashboardEncargo />}
+
+      {negocio === 'desarrollo' && error && <ErrorBox message={error} />}
+
+      {negocio === 'encargo' ? null : loading ? (
         <Loading />
       ) : vacio ? (
         <div className="notice notice-warning">

@@ -55,6 +55,7 @@ export default function Proyectos({ filter }) {
   const columns = [
     { key: 'code', label: 'Código' },
     { key: 'name', label: 'Proyecto' },
+    { key: 'model', label: 'Negocio' },
     { key: 'status', label: 'Estado' },
     { key: 'budget', label: 'Presupuesto', num: true },
     { key: 'capital', label: 'Capital aportado', num: true },
@@ -100,6 +101,11 @@ export default function Proyectos({ filter }) {
               <td>
                 {p.name}
                 {p.is_demo && <> <span className="tag-demo">demo</span></>}
+              </td>
+              <td>
+                <Badge tone={p.model === 'encargo' ? 'warn' : null}>
+                  {p.model === 'encargo' ? 'Por encargo' : 'Desarrollo'}
+                </Badge>
               </td>
               <td>
                 <Badge tone={TONO[p.status]}>

@@ -764,3 +764,11 @@ export async function deleteDocument(doc) {
   }
   return supabase.from('documents').delete().eq('id', doc.id).then(unwrap)
 }
+
+/** El negocio del estudio en una fila. Para un inversor vuelve todo en cero. */
+export const getEncargoSummary = () =>
+  supabase.from('encargo_summary').select('*').maybeSingle().then(unwrap)
+
+/** Una fila por obra por encargo, con avance certificado y resultado. */
+export const listEncargoHealth = () =>
+  supabase.from('encargo_health').select('*').order('code').then(unwrap)
