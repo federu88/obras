@@ -808,3 +808,13 @@ export const deleteItemType = (id) =>
 
 export const deleteBrand = (id) =>
   supabase.from('brands').delete().eq('id', id).then(unwrap)
+
+/**
+ * ¿Este usuario puede ver el negocio del estudio?
+ *
+ * Se le pregunta a la base en vez de mirar el rol acá. La regla vive en
+ * can_see_encargo() y es la misma que usa la RLS: si se cambia allá, la
+ * pantalla la sigue sola. Duplicarla en el front es pedir que se desincronicen.
+ */
+export const puedeVerEncargo = () =>
+  supabase.rpc('can_see_encargo').then(unwrap)

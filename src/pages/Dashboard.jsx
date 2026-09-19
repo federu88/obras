@@ -6,7 +6,7 @@ import {
   listProjectHealth,
   listCashRequirements,
   listInvestorSummary,
-  getEncargoSummary,
+  puedeVerEncargo,
 } from '../lib/queries'
 import DashboardEncargo from './DashboardEncargo'
 import { usd, pct } from '../lib/format'
@@ -22,16 +22,18 @@ export default function Dashboard() {
   const health = useAsync(listProjectHealth)
   const requirements = useAsync(listCashRequirements)
   const investors = useAsync(listInvestorSummary)
-  const encargo = useAsync(getEncargoSummary)
+  const permisoEncargo = useAsync(puedeVerEncargo)
 
   const loading = summary.loading || health.loading
   const error = summary.error || health.error
 
   const s = summary.data ?? {}
-  /* El selector aparece solo si hay obras por encargo VISIBLES para quien mira.
-     Para un inversor esto vuelve cero, y entonces ni se entera de que existe
-     el otro negocio: no hay pestaña vacía que invite a preguntar. */
-  const hayEncargo = (encargo.data?.obras_total ?? 0) > 0
+  /* El selector se muestra por PERMISO, no porque ya existan obras por
+     encargo. Atarlo a que haya datos dejaba al estudio sin forma de llegar a
+     la pantalla donde se crea la primera. Para un inversor can_see_encargo()
+     devuelve falso y el selector no aparece: no hay pestaña vacía que invite
+     a preguntar qué hay del otro lado. */
+  const hayEncargo = permisoEncargo.data === true
   const proyectos = health.data ?? []
   const conProblemas = proyectos.filter((p) => p.problema_costo || p.problema_plazo)
   const necesidades = requirements.data ?? []
