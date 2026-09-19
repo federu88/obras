@@ -598,3 +598,169 @@ export const countInvestorMovements = (investorId) =>
 
 export const deleteInvestor = (id) =>
   supabase.from('investors').delete().eq('id', id).then(unwrap)
+
+/* ---------------------------------------------------------------------------
+ * Obra por encargo: clientes, contrato, adicionales, certificados
+ * ------------------------------------------------------------------------- */
+
+export const listClients = () =>
+  supabase.from('clients').select('*').order('name').then(unwrap)
+
+export const createClient = (payload) =>
+  supabase.from('clients').insert(payload).select().single().then(unwrap)
+
+export const updateClient = (id, patch) =>
+  supabase.from('clients').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const deleteClient = (id) =>
+  supabase.from('clients').delete().eq('id', id).then(unwrap)
+
+/** Cuántas obras tiene un cliente. Con obras no se borra: quedaría un contrato huérfano. */
+export const countClientProjects = (clientId) =>
+  supabase
+    .from('contracts')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', clientId)
+    .then(({ error, count }) => {
+      if (error) throw new Error(error.message)
+      return count ?? 0
+    })
+
+/** El contrato de una obra, o null si todavía no se cargó. */
+export const getContract = (projectId) =>
+  supabase
+    .from('contracts')
+    .select('*')
+    .eq('project_id', projectId)
+    .maybeSingle()
+    .then(unwrap)
+
+/** Contrato vigente, certificado, cobrado y saldos, ya calculados. */
+export const getContractSummary = (projectId) =>
+  supabase
+    .from('contract_summary')
+    .select('*')
+    .eq('project_id', projectId)
+    .maybeSingle()
+    .then(unwrap)
+
+export const createContract = (payload) =>
+  supabase.from('contracts').insert(payload).select().single().then(unwrap)
+
+export const updateContract = (id, patch) =>
+  supabase.from('contracts').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const listChangeOrders = (contractId) =>
+  supabase
+    .from('change_orders')
+    .select('*')
+    .eq('contract_id', contractId)
+    .order('order_date')
+    .then(unwrap)
+
+export const createChangeOrder = (payload) =>
+  supabase.from('change_orders').insert(payload).select().single().then(unwrap)
+
+export const updateChangeOrder = (id, patch) =>
+  supabase.from('change_orders').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const deleteChangeOrder = (id) =>
+  supabase.from('change_orders').delete().eq('id', id).then(unwrap)
+
+export const listCertificates = (projectId) =>
+  supabase
+    .from('certificates')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('number')
+    .then(unwrap)
+
+export const createCertificate = (payload) =>
+  supabase.from('certificates').insert(payload).select().single().then(unwrap)
+
+export const updateCertificate = (id, patch) =>
+  supabase.from('certificates').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const deleteCertificate = (id) =>
+  supabase.from('certificates').delete().eq('id', id).then(unwrap)
+
+/** Resultado del estudio en la obra: cobrado menos lo que puso de su bolsillo. */
+export const getEncargoPnl = (projectId) =>
+  supabase
+    .from('project_encargo_pnl')
+    .select('*')
+    .eq('project_id', projectId)
+    .maybeSingle()
+    .then(unwrap)
+
+/* ---------------------------------------------------------------------------
+ * Bitácora
+ * ------------------------------------------------------------------------- */
+
+export const listProjectLog = (projectId) =>
+  supabase
+    .from('project_log')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('log_date', { ascending: false })
+    .then(unwrap)
+
+export const createLogEntry = (payload) =>
+  supabase.from('project_log').insert(payload).select().single().then(unwrap)
+
+export const updateLogEntry = (id, patch) =>
+  supabase.from('project_log').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const deleteLogEntry = (id) =>
+  supabase.from('project_log').delete().eq('id', id).then(unwrap)
+
+/* ---------------------------------------------------------------------------
+ * Documentos
+ *
+ * El registro y el archivo van separados: una factura existe aunque el PDF
+ * todavía no esté subido.
+ * ------------------------------------------------------------------------- */
+
+export const listDocuments = (projectId) =>
+  supabase
+    .from('documents')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('doc_date', { ascending: false })
+    .then(unwrap)
+
+export const createDocument = (payload) =>
+  supabase.from('documents').insert(payload).select().single().then(unwrap)
+
+export const updateDocument = (id, patch) =>
+  supabase.from('documents').update(patch).eq('id', id).select().single().then(unwrap)
+
+/** Sube el archivo al bucket privado. La carpeta es el proyecto: de ahí sale el permiso. */
+export async function uploadDocumentFile(projectId, file) {
+  const limpio = file.name.replace(/[^\w.\-]+/g, '_')
+  const path = `${projectId}/${crypto.randomUUID()}-${limpio}`
+  const { error } = await supabase.storage.from('documentos').upload(path, file)
+  if (error) throw new Error(error.message)
+  return {
+    storage_path: path,
+    file_name: file.name,
+    mime_type: file.type || null,
+    size_bytes: file.size,
+  }
+}
+
+/** URL temporal para ver o bajar el archivo. El bucket es privado: no hay link fijo. */
+export async function getDocumentUrl(path, segundos = 300) {
+  const { data, error } = await supabase.storage
+    .from('documentos')
+    .createSignedUrl(path, segundos)
+  if (error) throw new Error(error.message)
+  return data.signedUrl
+}
+
+export async function deleteDocument(doc) {
+  if (doc.storage_path) {
+    await supabase.storage.from('documentos').remove([doc.storage_path])
+  }
+  return supabase.from('documents').delete().eq('id', doc.id).then(unwrap)
+}

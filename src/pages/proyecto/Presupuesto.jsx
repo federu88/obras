@@ -22,6 +22,7 @@ const EMPTY = {
   unit: 'un',
   qty_original: '',
   price_original_usd: '',
+  price_client_usd: '',
   qty_forecast: '',
   price_forecast_usd: '',
   planned_date: '',
@@ -40,7 +41,7 @@ function Var({ actual, baseline }) {
   )
 }
 
-export default function Presupuesto({ projectId, onChange }) {
+export default function Presupuesto({ projectId, encargo = false, onChange }) {
   const { canManage } = useAuth()
   const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(EMPTY)
@@ -66,6 +67,8 @@ export default function Presupuesto({ projectId, onChange }) {
         unit: form.unit || 'un',
         qty_original: Number(form.qty_original || 0),
         price_original_usd: Number(form.price_original_usd || 0),
+        price_client_usd:
+          encargo && form.price_client_usd !== '' ? Number(form.price_client_usd) : null,
         qty_forecast: form.qty_forecast === '' ? null : Number(form.qty_forecast),
         price_forecast_usd:
           form.price_forecast_usd === '' ? null : Number(form.price_forecast_usd),
@@ -94,6 +97,7 @@ export default function Presupuesto({ projectId, onChange }) {
       unit: full.unit ?? 'un',
       qty_original: full.qty_original ?? '',
       price_original_usd: full.price_original_usd ?? '',
+      price_client_usd: full.price_client_usd ?? '',
       qty_forecast: full.qty_forecast ?? '',
       price_forecast_usd: full.price_forecast_usd ?? '',
       planned_date: full.planned_date ?? '',
@@ -128,6 +132,12 @@ export default function Presupuesto({ projectId, onChange }) {
     { key: 'qty_original', label: 'Cant.', num: true },
     { key: 'price_original_usd', label: 'Precio un.', num: true },
     { key: 'total_original_usd', label: 'Budget', num: true },
+    ...(encargo
+      ? [
+          { key: 'total_client_usd', label: 'Al cliente', num: true },
+          { key: 'margen_presupuestado_usd', label: 'Margen', num: true },
+        ]
+      : []),
     { key: 'total_forecast_usd', label: 'Forecast', num: true },
     { key: 'actual_usd', label: 'Actual', num: true },
     { key: 'pendiente_usd', label: 'Pendiente', num: true },
@@ -174,6 +184,22 @@ export default function Presupuesto({ projectId, onChange }) {
                 <td className="num">{r.qty_original} {r.unit}</td>
                 <td className="num">{usd(r.price_original_usd)}</td>
                 <td className="num">{usd(r.total_original_usd)}</td>
+                {encargo && (
+                  <>
+                    <td className="num">
+                      {r.total_client_usd == null ? '—' : usd(r.total_client_usd)}
+                    </td>
+                    <td
+                      className={`num ${
+                        r.margen_presupuestado_usd < 0 ? 'var-neg' : ''
+                      }`}
+                    >
+                      {r.margen_presupuestado_usd == null
+                        ? '—'
+                        : usd(r.margen_presupuestado_usd)}
+                    </td>
+                  </>
+                )}
                 <td className="num">{usd(r.total_forecast_usd)}</td>
                 <td className="num">{usd(r.actual_usd)}</td>
                 <td className="num">{usd(r.pendiente_usd)}</td>
@@ -286,9 +312,27 @@ export default function Presupuesto({ projectId, onChange }) {
             <input type="number" step="0.0001" min="0" required value={form.qty_original} onChange={set('qty_original')} />
           </Field>
 
-          <Field label="Precio unitario (USD)">
+          <Field label="Precio unitario (USD)" hint={encargo ? 'Lo que estimamos que nos va a costar.' : undefined}>
             <input type="number" step="0.0001" min="0" required value={form.price_original_usd} onChange={set('price_original_usd')} />
           </Field>
+
+          {/* El otro precio: lo que se le presupuestó al cliente. Uno es lo que
+              creemos que va a costar, el otro es lo que le dijimos que iba a
+              pagar, y solo el segundo sale en un reporte para él. */}
+          {encargo && (
+            <Field
+              label="Precio unitario al cliente (USD)"
+              hint="Lo que se le cotizó. La diferencia contra el costo es el margen."
+            >
+              <input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={form.price_client_usd}
+                onChange={set('price_client_usd')}
+              />
+            </Field>
+          )}
 
           <div className="notice">
             Lo de arriba es el <strong>budget original</strong> y queda congelado. Lo de

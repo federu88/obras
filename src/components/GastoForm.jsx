@@ -51,6 +51,9 @@ const VACIO = {
   fx_usd: '',
   due_date: '',
   paid_date: '',
+  /* Solo aplican a obra por encargo. */
+  paid_by: 'estudio',
+  client_amount: '',
 }
 
 function desdeGasto(g) {
@@ -66,10 +69,11 @@ function desdeGasto(g) {
   f.item_id = g.item_id ?? g.item?.id ?? ''
   f.status = g.status ?? 'pagado'
   f.purchase_stage = g.purchase_stage ?? ''
+  f.paid_by = g.paid_by ?? 'estudio'
   return f
 }
 
-export default function GastoForm({ gasto, projectId, onClose, onSave }) {
+export default function GastoForm({ gasto, projectId, encargo = false, onClose, onSave }) {
   const [form, setForm] = useState(() => desdeGasto(gasto))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -99,12 +103,14 @@ export default function GastoForm({ gasto, projectId, onClose, onSave }) {
   }, [form.currency, form.expense_date])
 
   const total = Number(form.qty || 0) * Number(form.unit_price || 0)
-  const totalUsd =
-    form.currency === 'USD'
-      ? total
-      : form.fx_usd
-        ? total / Number(form.fx_usd)
-        : null
+  const aUsd = (v) =>
+    form.currency === 'USD' ? v : form.fx_usd ? v / Number(form.fx_usd) : null
+  const totalUsd = aUsd(total)
+
+  /* El margen se muestra mientras se carga para que el numero se elija a
+     conciencia, no al cerrar el mes. */
+  const clienteUsd = form.client_amount === '' ? null : aUsd(Number(form.client_amount))
+  const margen = clienteUsd != null && totalUsd != null ? clienteUsd - totalUsd : null
 
   async function submit() {
     setSaving(true)
@@ -126,6 +132,10 @@ export default function GastoForm({ gasto, projectId, onClose, onSave }) {
         fx_usd: form.currency === 'ARS' ? Number(form.fx_usd) : null,
         due_date: form.due_date || null,
         paid_date: form.paid_date || null,
+        /* En desarrollo propio no hay cliente a quien repicarle nada: se
+           mandan los valores neutros para no dejar datos que engañen. */
+        paid_by: encargo ? form.paid_by : 'estudio',
+        client_amount: encargo && form.client_amount !== '' ? Number(form.client_amount) : null,
       })
       onClose()
     } catch (err) {
@@ -195,7 +205,41 @@ export default function GastoForm({ gasto, projectId, onClose, onSave }) {
       {totalUsd != null && (
         <div className="notice">
           Total: <strong>{usd(totalUsd)}</strong>
+          {margen != null && (
+            <> · se le cobra al cliente <strong>{usd(clienteUsd)}</strong>,
+            margen <strong className={margen < 0 ? 'var-neg' : 'var-pos'}>{usd(margen)}</strong></>
+          )}
         </div>
+      )}
+
+      {/* Los dos precios. Solo tienen sentido cuando hay un cliente del otro
+          lado: en desarrollo propio el costo ES el número, no hay a quién
+          repicarle nada. */}
+      {encargo && (
+        <>
+          <Field
+            label="Quién lo pagó"
+            hint="Los dos son costo de la obra, pero solo lo que pone el estudio es plata del estudio."
+          >
+            <select value={form.paid_by} onChange={set('paid_by')}>
+              <option value="estudio">El estudio</option>
+              <option value="cliente">El cliente, directo al proveedor</option>
+            </select>
+          </Field>
+
+          <Field
+            label="Se le cobra al cliente"
+            hint="En la misma moneda del gasto. Vacío si no se le repica. El cliente nunca ve este número junto al costo."
+          >
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.client_amount}
+              onChange={set('client_amount')}
+            />
+          </Field>
+        </>
       )}
 
       <Field label="Estado financiero" hint="Define qué cuenta como costo y qué está solo comprometido.">

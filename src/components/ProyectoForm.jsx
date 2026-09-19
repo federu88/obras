@@ -32,9 +32,15 @@ const NUMERICOS = [
   'broker_fee_pct',
 ]
 
+export const PROJECT_MODELS = {
+  desarrollo: 'Desarrollo propio (se vende y se reparte)',
+  encargo: 'Obra por encargo (la paga un cliente)',
+}
+
 const VACIO = {
   code: '',
   name: '',
+  model: 'desarrollo',
   location: '',
   house_type: '',
   lot_m2: '',
@@ -63,6 +69,7 @@ function desdeProyecto(p) {
   // El porcentaje se guarda como fracción y se edita como número entero.
   f.broker_fee_pct = p.broker_fee_pct == null ? '2.5' : String(Number(p.broker_fee_pct) * 100)
   f.status = p.status ?? 'idea'
+  f.model = p.model ?? 'desarrollo'
   return f
 }
 
@@ -137,6 +144,17 @@ export default function ProyectoForm({ project, onClose, onSave }) {
         <input type="number" step="0.01" min="0" value={form.semi_covered_m2} onChange={set('semi_covered_m2')} />
       </Field>
 
+      <Field
+        label="Modelo"
+        hint="Decide cómo entra la plata: capital de socios que se reparte, o un cliente que paga contra avance."
+      >
+        <select value={form.model} onChange={set('model')}>
+          {Object.entries(PROJECT_MODELS).map(([k, label]) => (
+            <option key={k} value={k}>{label}</option>
+          ))}
+        </select>
+      </Field>
+
       <Field label="Estado">
         <select value={form.status} onChange={set('status')}>
           {Object.entries(PROJECT_STATUS).map(([k, label]) => (
@@ -168,36 +186,49 @@ export default function ProyectoForm({ project, onClose, onSave }) {
         <input type="number" step="0.01" min="0" value={form.budget_usd} onChange={set('budget_usd')} />
       </Field>
 
-      <Field label="Capital requerido (USD)">
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={form.capital_required_usd}
-          onChange={set('capital_required_usd')}
-        />
-      </Field>
+      {/* Capital, venta y comisión son del desarrollo propio. En una obra por
+          encargo no hay venta ni inmobiliaria: el precio está en el contrato. */}
+      {form.model === 'desarrollo' && (
+        <>
+          <Field label="Capital requerido (USD)">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.capital_required_usd}
+              onChange={set('capital_required_usd')}
+            />
+          </Field>
 
-      <Field label="Venta estimada (USD)">
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={form.target_sale_usd}
-          onChange={set('target_sale_usd')}
-        />
-      </Field>
+          <Field label="Venta estimada (USD)">
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.target_sale_usd}
+              onChange={set('target_sale_usd')}
+            />
+          </Field>
 
-      <Field label="Comisión inmobiliaria (%)" hint="2,5 según el reparto real.">
-        <input
-          type="number"
-          step="0.1"
-          min="0"
-          max="100"
-          value={form.broker_fee_pct}
-          onChange={set('broker_fee_pct')}
-        />
-      </Field>
+          <Field label="Comisión inmobiliaria (%)" hint="2,5 según el reparto real.">
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              value={form.broker_fee_pct}
+              onChange={set('broker_fee_pct')}
+            />
+          </Field>
+        </>
+      )}
+
+      {form.model === 'encargo' && (
+        <div className="notice">
+          El precio, los honorarios y los adicionales se cargan en la pestaña{' '}
+          <strong>Contrato</strong> de la obra, una vez creada.
+        </div>
+      )}
 
       <Field label="Notas">
         <input value={form.notes} onChange={set('notes')} />

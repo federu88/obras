@@ -46,6 +46,7 @@ const NAV = [
     ],
   },
   { to: '/inversores', label: 'Inversores', icon: 'investors' },
+  { to: '/clientes', label: 'Clientes', icon: 'investors' },
   {
     to: '/finanzas',
     label: 'Finanzas',

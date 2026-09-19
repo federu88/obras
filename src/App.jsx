@@ -21,6 +21,7 @@ import Inversor from './pages/Inversor'
 import Caja from './pages/Caja'
 import Dolar from './pages/Dolar'
 import Inversores from './pages/Inversores'
+import Clientes from './pages/Clientes'
 import Capital from './pages/Capital'
 
 /** Pantalla de arranque cuando todavía no hay proyecto de Supabase conectado. */
@@ -85,6 +86,8 @@ export default function App() {
 
             <Route path="inversores" element={<Inversores />} />
             <Route path="inversores/:id" element={<Inversor />} />
+
+            <Route path="clientes" element={<Clientes />} />
 
             <Route path="finanzas" element={<Navigate to="/finanzas/cashflow" replace />} />
             <Route path="finanzas/cashflow" element={<Cashflow />} />

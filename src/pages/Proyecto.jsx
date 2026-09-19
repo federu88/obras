@@ -10,19 +10,37 @@ import Ingresos from './proyecto/Ingresos'
 import Desvios from './proyecto/Desvios'
 import Cronograma from './proyecto/Cronograma'
 import Conciliacion from './proyecto/Conciliacion'
+import Contrato from './proyecto/Contrato'
+import Bitacora from './proyecto/Bitacora'
+import Documentos from './proyecto/Documentos'
 import ProyectoForm from '../components/ProyectoForm'
 import { useAuth } from '../context/AuthContext'
 
 import { PROJECT_STATUS as STATUS } from '../components/ProyectoForm'
 
-const TABS = [
+/**
+ * Las pestañas dependen del modelo de negocio de la obra.
+ *
+ * Construir es igual en las dos: presupuesto, gastos, desvíos y cronograma
+ * están siempre. Lo que cambia es la plata. Una obra para vender tiene
+ * conciliación contra las planillas viejas; una obra por encargo tiene
+ * contrato, bitácora y papeles.
+ */
+const TABS_COMUNES = [
   ['resumen', 'Resumen'],
   ['presupuesto', 'Presupuesto'],
   ['gastos', 'Gastos'],
   ['ingresos', 'Ingresos'],
   ['desvios', 'Desvíos'],
   ['cronograma', 'Cronograma'],
-  ['conciliacion', 'Conciliación'],
+]
+
+const TABS_DESARROLLO = [['conciliacion', 'Conciliación']]
+
+const TABS_ENCARGO = [
+  ['contrato', 'Contrato'],
+  ['documentos', 'Documentos'],
+  ['bitacora', 'Bitácora'],
 ]
 
 /** Desvío contra el budget original, con signo y color. Un sobrecosto es malo. */
@@ -52,6 +70,11 @@ export default function Proyecto() {
 
   const p = project.data
   const f = pnl.data ?? {}
+  const esEncargo = p.model === 'encargo'
+  const TABS = [
+    ...TABS_COMUNES,
+    ...(esEncargo ? TABS_ENCARGO : TABS_DESARROLLO),
+  ]
 
   /* Avance económico: lo ejecutado sobre lo que se espera gastar.
      Es distinto del avance físico (días), que llega en Fase 5. */
@@ -69,6 +92,7 @@ export default function Proyecto() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
           <h1>{p.name}</h1>
           <Badge>{STATUS[p.status] ?? p.status}</Badge>
+          {esEncargo && <Badge tone="warn">Obra por encargo</Badge>}
           {canManage && (
             <button
               className="btn"
@@ -168,12 +192,15 @@ export default function Proyecto() {
         </div>
       )}
 
-      {tab === 'presupuesto' && <Presupuesto projectId={id} onChange={pnl.reload} />}
-      {tab === 'gastos' && <Gastos projectId={id} onChange={pnl.reload} />}
+      {tab === 'presupuesto' && <Presupuesto projectId={id} encargo={esEncargo} onChange={pnl.reload} />}
+      {tab === 'gastos' && <Gastos projectId={id} encargo={esEncargo} onChange={pnl.reload} />}
       {tab === 'ingresos' && <Ingresos projectId={id} onChange={pnl.reload} />}
       {tab === 'desvios' && <Desvios projectId={id} />}
       {tab === 'cronograma' && <Cronograma projectId={id} />}
       {tab === 'conciliacion' && <Conciliacion projectId={id} />}
+      {tab === 'contrato' && <Contrato projectId={id} />}
+      {tab === 'documentos' && <Documentos projectId={id} />}
+      {tab === 'bitacora' && <Bitacora projectId={id} />}
 
       {editando && (
         <ProyectoForm

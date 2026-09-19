@@ -16,7 +16,7 @@ const STATUS = {
   anulado: ['Anulado', 'off'],
 }
 
-export default function Gastos({ projectId, onChange }) {
+export default function Gastos({ projectId, encargo = false, onChange }) {
   const { canManage } = useAuth()
   /* null = cerrado · 'nuevo' = alta · un objeto = edición de ese gasto */
   const [abierto, setAbierto] = useState(null)
@@ -112,6 +112,7 @@ export default function Gastos({ projectId, onChange }) {
         <GastoForm
           gasto={abierto === 'nuevo' ? null : abierto}
           projectId={projectId}
+          encargo={encargo}
           onClose={() => setAbierto(null)}
           onSave={async (payload) => {
             if (abierto === 'nuevo') await createExpense({ ...payload, project_id: projectId })
