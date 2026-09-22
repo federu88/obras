@@ -93,8 +93,8 @@ export default function Layout() {
     <div className="layout">
       <aside className={`sidebar${open ? ' open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark">OB</div>
-          <div className="brand-name">Obras</div>
+          <div className="brand-mark">B</div>
+          <div className="brand-name">Boceto</div>
         </div>
 
         <nav>

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Genera el manual de uso de Obras en PDF.
+"""Genera el manual de uso de Boceto en PDF.
 
     pip install reportlab
     python docs/generar_manual.py
@@ -18,7 +18,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (BaseDocTemplate, Frame, PageBreak, PageTemplate,
                                 Paragraph, Spacer, Table, TableStyle)
 
-SALIDA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Manual-Obras.pdf')
+SALIDA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Manual.pdf')
 
 # Paleta de la app
 BRONCE = colors.HexColor('#b4703a')
@@ -128,7 +128,7 @@ a = S.append
 
 # --- Portada -----------------------------------------------------------------
 a(Spacer(1, 45 * mm))
-marca = Table([[Paragraph('<font color="white"><b>OB</b></font>',
+marca = Table([[Paragraph('<font color="white"><b>B</b></font>',
                           st('m', fontSize=15, textColor=colors.white))]],
               colWidths=[13 * mm], rowHeights=[13 * mm], hAlign='LEFT')
 marca.setStyle(TableStyle([
@@ -140,7 +140,7 @@ marca.setStyle(TableStyle([
 ]))
 a(marca)
 a(Spacer(1, 10 * mm))
-a(Paragraph('Obras', st('t', fontName='Helvetica-Bold', fontSize=34, leading=38)))
+a(Paragraph('Boceto', st('t', fontName='Helvetica-Bold', fontSize=34, leading=38)))
 a(Paragraph('Manual de uso', st('t2', fontSize=15, leading=20, textColor=BRONCE,
                                 spaceAfter=18)))
 a(Paragraph(
@@ -454,7 +454,7 @@ def decorar(canvas, doc):
         canvas.line(22 * mm, 16 * mm, 188 * mm, 16 * mm)
         canvas.setFont('Helvetica', 7.5)
         canvas.setFillColor(GRIS)
-        canvas.drawString(22 * mm, 11 * mm, 'Obras · Manual de uso')
+        canvas.drawString(22 * mm, 11 * mm, 'Boceto · Manual de uso')
         canvas.drawRightString(188 * mm, 11 * mm, str(doc.page))
     canvas.restoreState()
 
@@ -462,9 +462,9 @@ def decorar(canvas, doc):
 doc = BaseDocTemplate(SALIDA, pagesize=A4,
                       leftMargin=22 * mm, rightMargin=22 * mm,
                       topMargin=20 * mm, bottomMargin=22 * mm,
-                      title='Obras — Manual de uso',
-                      author='Obras',
-                      subject='Manual de uso de la plataforma Obras')
+                      title='Boceto — Manual de uso',
+                      author='Boceto',
+                      subject='Manual de uso de la plataforma Boceto')
 
 frame = Frame(doc.leftMargin, doc.bottomMargin,
               doc.width, doc.height, id='cuerpo')

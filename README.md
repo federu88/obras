@@ -1,4 +1,4 @@
-# Obras
+# Boceto
 
 Plataforma de gestión para desarrollo, construcción y comercialización de casas:
 proyectos, presupuesto, compras, cronograma, cashflow, resultado e inversores.

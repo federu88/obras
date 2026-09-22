@@ -32,4 +32,4 @@ dist-ssr
 .claude/
 
 # El PDF se regenera con el script; no se versiona
-docs/Manual-Obras.pdf
+docs/Manual.pdf

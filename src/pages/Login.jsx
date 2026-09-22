@@ -33,9 +33,9 @@ export default function Login() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="brand-mark" style={{ width: 32, height: 32 }}>
-            OB
+            B
           </div>
-          <h1 style={{ fontSize: '1.25rem' }}>Obras</h1>
+          <h1 style={{ fontSize: '1.25rem' }}>Boceto</h1>
         </div>
 
         <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.875rem' }}>
