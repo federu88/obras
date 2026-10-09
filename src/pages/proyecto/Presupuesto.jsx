@@ -4,6 +4,7 @@ import {
   listBudgetLines,
   createBudgetLine,
   deleteBudgetLine,
+  deleteBudgetLines,
   updateBudgetLine,
   getBudgetLine,
   listCostCategories,
@@ -55,6 +56,9 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
   const items = useAsync(listItemsPlain)
   const tasks = useAsync(() => listTasks(projectId), [projectId])
   const [planificando, setPlanificando] = useState(false)
+  const [seleccion, setSeleccion] = useState(() => new Set())
+  const [borrando, setBorrando] = useState(false)
+  const [borrarError, setBorrarError] = useState(null)
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -108,13 +112,74 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
     setAbierto(r)
   }
 
-  async function remove(id) {
-    await deleteBudgetLine(id)
-    lines.reload()
-    onChange?.()
+  async function remove(r) {
+    const aviso =
+      `¿Borrar la línea "${r.description}" del presupuesto? No se puede deshacer.` +
+      (Number(r.actual_usd || 0) > 0
+        ? '\n\nTiene gastos cargados: esos gastos no se borran, pero quedan sin línea de presupuesto asignada.'
+        : '')
+    if (!window.confirm(aviso)) return
+
+    setBorrarError(null)
+    try {
+      await deleteBudgetLine(r.budget_line_id)
+      setSeleccion((s) => {
+        const n = new Set(s)
+        n.delete(r.budget_line_id)
+        return n
+      })
+      lines.reload()
+      onChange?.()
+    } catch (err) {
+      setBorrarError(err.message)
+    }
   }
 
   const rows = lines.data ?? []
+
+  /* La seleccion se cruza con las filas actuales: si una linea desaparece
+     (otra pestaña, un reload) no queda seleccionada en el aire. */
+  const elegidas = rows.filter((r) => seleccion.has(r.budget_line_id))
+  const todas = rows.length > 0 && elegidas.length === rows.length
+
+  function alternarLinea(id) {
+    setSeleccion((s) => {
+      const n = new Set(s)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+
+  function alternarTodas() {
+    setSeleccion(todas ? new Set() : new Set(rows.map((r) => r.budget_line_id)))
+  }
+
+  async function borrarSeleccionadas() {
+    if (!elegidas.length) return
+    const conGastos = elegidas.filter((r) => Number(r.actual_usd || 0) > 0)
+    const aviso =
+      `¿Borrar ${elegidas.length === 1 ? '1 línea' : `${elegidas.length} líneas`} del presupuesto? ` +
+      'No se puede deshacer.' +
+      (conGastos.length
+        ? `\n\n${conGastos.length === 1 ? '1 tiene' : `${conGastos.length} tienen`} gastos cargados: ` +
+          'esos gastos no se borran, pero quedan sin línea de presupuesto asignada.'
+        : '')
+    if (!window.confirm(aviso)) return
+
+    setBorrando(true)
+    setBorrarError(null)
+    try {
+      await deleteBudgetLines(elegidas.map((r) => r.budget_line_id))
+      setSeleccion(new Set())
+      lines.reload()
+      onChange?.()
+    } catch (err) {
+      setBorrarError(err.message)
+    } finally {
+      setBorrando(false)
+    }
+  }
 
   /* Una linea sin fecha prevista es plata que se va a gastar y que el cashflow
      no ve venir. No es un error de carga que se note solo: hay que decirlo. */
@@ -147,6 +212,23 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
   )
 
   const columns = [
+    ...(canManage
+      ? [
+          {
+            key: 'sel',
+            sort: false,
+            label: (
+              <input
+                type="checkbox"
+                aria-label="Seleccionar todas las líneas"
+                checked={todas}
+                ref={(el) => { if (el) el.indeterminate = elegidas.length > 0 && !todas }}
+                onChange={alternarTodas}
+              />
+            ),
+          },
+        ]
+      : []),
     { key: 'planned_date', label: 'Fecha prevista' },
     { key: 'actividad', label: 'Actividad' },
     { key: 'categoria', label: 'Categoría' },
@@ -227,12 +309,69 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
         <Loading />
       ) : (
         <>
+          {canManage && rows.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                padding: '8px 12px',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                background: elegidas.length ? 'var(--accent-soft)' : undefined,
+              }}
+            >
+              {elegidas.length === 0 ? (
+                <button className="btn" onClick={alternarTodas}>
+                  Seleccionar todas ({rows.length})
+                </button>
+              ) : (
+                <>
+                  <strong>
+                    {elegidas.length === 1 ? '1 línea seleccionada' : `${elegidas.length} líneas seleccionadas`}
+                  </strong>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    · {usd(elegidas.reduce((a, r) => a + Number(r.total_original_usd || 0), 0))} de budget
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  {!todas && (
+                    <button className="btn" onClick={alternarTodas}>
+                      Seleccionar todas ({rows.length})
+                    </button>
+                  )}
+                  <button className="btn" onClick={() => setSeleccion(new Set())} disabled={borrando}>
+                    Quitar selección
+                  </button>
+                  <button className="btn btn-primary" onClick={borrarSeleccionadas} disabled={borrando}>
+                    {borrando ? 'Borrando…' : 'Borrar seleccionadas'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {borrarError && <ErrorBox message={borrarError} />}
+
           <Table
             columns={columns}
             rows={rows}
             empty="Todavía no hay líneas de presupuesto."
             renderRow={(r) => (
-              <tr key={r.budget_line_id}>
+              <tr
+                key={r.budget_line_id}
+                style={seleccion.has(r.budget_line_id) ? { background: 'var(--accent-soft)' } : undefined}
+              >
+                {canManage && (
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar ${r.description}`}
+                      checked={seleccion.has(r.budget_line_id)}
+                      onChange={() => alternarLinea(r.budget_line_id)}
+                    />
+                  </td>
+                )}
                 <td className="nowrap">{date(r.planned_date)}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{r.actividad ?? '—'}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{r.categoria ?? '—'}</td>
@@ -266,7 +405,7 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
                       <button className="icon-btn" onClick={() => abrirEdicion(r)}>
                         Editar
                       </button>
-                      <button className="icon-btn" onClick={() => remove(r.budget_line_id)}>
+                      <button className="icon-btn" onClick={() => remove(r)}>
                         Borrar
                       </button>
                     </>

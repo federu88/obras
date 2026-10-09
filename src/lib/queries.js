@@ -132,6 +132,9 @@ export const updateBudgetLine = (id, patch) =>
 export const deleteBudgetLine = (id) =>
   supabase.from('budget_lines').delete().eq('id', id).then(unwrap)
 
+export const deleteBudgetLines = (ids) =>
+  supabase.from('budget_lines').delete().in('id', ids).then(unwrap)
+
 /* --- Gastos --------------------------------------------------------------- */
 
 export const listExpenses = (projectId) =>
