@@ -23,6 +23,7 @@ import Dolar from './pages/Dolar'
 import Inversores from './pages/Inversores'
 import Clientes from './pages/Clientes'
 import Capital from './pages/Capital'
+import CostosPorRubro from './pages/CostosPorRubro'
 
 /** Pantalla de arranque cuando todavía no hay proyecto de Supabase conectado. */
 function SetupRequired() {
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="finanzas" element={<Navigate to="/finanzas/cashflow" replace />} />
             <Route path="finanzas/cashflow" element={<Cashflow />} />
             <Route path="finanzas/pnl" element={<Pnl />} />
+            <Route path="finanzas/rubros" element={<CostosPorRubro />} />
             <Route path="finanzas/capital" element={<Capital />} />
             <Route path="finanzas/caja" element={<Caja />} />
             <Route path="finanzas/dolar" element={<Dolar />} />

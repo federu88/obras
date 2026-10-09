@@ -140,7 +140,7 @@ export const deleteBudgetLines = (ids) =>
 export const listExpenses = (projectId) =>
   supabase
     .from('expenses')
-    .select('*, category:cost_categories ( id, name )')
+    .select('*, category:cost_categories ( id, name ), rubro:project_rubros ( id, name )')
     .eq('project_id', projectId)
     .order('expense_date', { ascending: false })
     .then(unwrap)
@@ -253,6 +253,125 @@ export const registrarCambioBilletera = ({ projectId, fecha, usd, cotizacion, no
       p_nota: nota || null,
     })
     .then(unwrap)
+
+/* --- Rubros y comprobantes ------------------------------------------------ */
+
+/** Los rubros de una obra, en su orden. Incluye los ocultos: la UI decide. */
+export const listProjectRubros = (projectId) =>
+  supabase
+    .from('project_rubros')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('sort_order')
+    .order('name')
+    .then(unwrap)
+
+export const createProjectRubro = (payload) =>
+  supabase.from('project_rubros').insert(payload).select().single().then(unwrap)
+
+export const updateProjectRubro = (id, patch) =>
+  supabase.from('project_rubros').update(patch).eq('id', id).select().single().then(unwrap)
+
+/** Solo se puede borrar un rubro que nadie usa; si no, se oculta. */
+export const deleteProjectRubro = (id) =>
+  supabase.from('project_rubros').delete().eq('id', id).then(unwrap)
+
+/**
+ * Comprobante + líneas + desglose + mano de obra, en una sola transacción.
+ * Devuelve el id del comprobante, que hace falta para la ruta de la foto.
+ */
+export const guardarComprobante = (receipt, lines) =>
+  supabase.rpc('guardar_comprobante', { p_receipt: receipt, p_lines: lines }).then(unwrap)
+
+/** Reemplaza entero el desglose de una línea. */
+export const guardarItemsLinea = (expenseId, items) =>
+  supabase.rpc('guardar_items_linea', { p_expense: expenseId, p_items: items }).then(unwrap)
+
+/** Comprobantes de una obra con lo asignado y lo que falta (vista receipt_balance). */
+export const listReceipts = (projectId) =>
+  supabase
+    .from('receipt_balance')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('receipt_date', { ascending: false })
+    .then(unwrap)
+
+export const updateReceipt = (id, patch) =>
+  supabase.from('receipts').update(patch).eq('id', id).select().single().then(unwrap)
+
+export const listExpenseItems = (expenseId) =>
+  supabase
+    .from('expense_items')
+    .select('*')
+    .eq('expense_id', expenseId)
+    .order('created_at')
+    .then(unwrap)
+
+/** Catálogo + lo ya escrito a mano, para autocompletar el desglose. */
+export const listItemSuggestions = () =>
+  supabase
+    .from('expense_item_suggestions')
+    .select('*')
+    .order('usos', { ascending: false })
+    .then(unwrap)
+
+export const getLaborDetail = (expenseId) =>
+  supabase.from('labor_details').select('*').eq('expense_id', expenseId).maybeSingle().then(unwrap)
+
+export const saveLaborDetail = (payload) =>
+  supabase.from('labor_details').upsert(payload).select().single().then(unwrap)
+
+export const deleteLaborDetail = (expenseId) =>
+  supabase.from('labor_details').delete().eq('expense_id', expenseId).then(unwrap)
+
+/**
+ * Sube la foto del comprobante y la deja anotada en el comprobante.
+ * La ruta es <obra>/<comprobante>/<archivo>: de la primera carpeta sale el permiso.
+ */
+export async function uploadReceiptPhoto(projectId, receiptId, file) {
+  const limpio = file.name.replace(/[^\w.-]+/g, '_')
+  const path = `${projectId}/${receiptId}/${Date.now()}-${limpio}`
+  const { error } = await supabase.storage.from('comprobantes').upload(path, file)
+  if (error) throw new Error(error.message)
+  await updateReceipt(receiptId, { storage_path: path })
+  return path
+}
+
+/** URL temporal de la foto. El bucket es privado: no hay link fijo. */
+export async function getReceiptPhotoUrl(path, segundos = 300) {
+  const { data, error } = await supabase.storage
+    .from('comprobantes')
+    .createSignedUrl(path, segundos)
+  if (error) throw new Error(error.message)
+  return data.signedUrl
+}
+
+/* --- Reportes de costo por rubro ------------------------------------------ */
+
+/** Presupuesto contra real por rubro. Sin obra, todas: es el cruce entre obras. */
+export const listRubroTotals = (projectId) => {
+  let q = supabase.from('rubro_totals').select('*').order('code').order('sort_order')
+  if (projectId) q = q.eq('project_id', projectId)
+  return q.then(unwrap)
+}
+
+export const listRubroCostTypeTotals = (projectId) => {
+  let q = supabase.from('rubro_cost_type_totals').select('*').order('code').order('sort_order')
+  if (projectId) q = q.eq('project_id', projectId)
+  return q.then(unwrap)
+}
+
+export const listCostTypeTotals = (projectId) => {
+  let q = supabase.from('cost_type_totals').select('*')
+  if (projectId) q = q.eq('project_id', projectId)
+  return q.then(unwrap)
+}
+
+export const listLaborPayments = (projectId) => {
+  let q = supabase.from('labor_payments').select('*').order('ultimo_pago', { ascending: false })
+  if (projectId) q = q.eq('project_id', projectId)
+  return q.then(unwrap)
+}
 
 /* --- Cashflow ------------------------------------------------------------- */
 
@@ -497,8 +616,9 @@ export const listGastosRecientes = (projectId, limit = 40) =>
     .from('expenses')
     .select(
       `id, description, expense_date, qty, unit_price, currency, fx_usd, amount_usd,
-       status, supplier_name,
+       status, supplier_name, cost_type, receipt_id,
        category:cost_categories ( id, name ),
+       rubro:project_rubros ( id, name ),
        supplier:suppliers ( id, name )`
     )
     .eq('project_id', projectId)

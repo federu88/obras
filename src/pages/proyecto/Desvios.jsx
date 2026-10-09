@@ -1,5 +1,5 @@
 import { useAsync } from '../../lib/useAsync'
-import { listProcurementVariance, listVarianceByCategory } from '../../lib/queries'
+import { listProcurementVariance, listRubroTotals } from '../../lib/queries'
 import { usd, pct, variance } from '../../lib/format'
 import { Table, Loading, ErrorBox } from '../../components/ui'
 
@@ -19,7 +19,11 @@ function Var({ actual, baseline }) {
 
 export default function Desvios({ projectId }) {
   const lines = useAsync(() => listProcurementVariance(projectId), [projectId])
-  const byCat = useAsync(() => listVarianceByCategory(projectId), [projectId])
+  const porRubro = useAsync(() => listRubroTotals(projectId), [projectId])
+  /* Los rubros sin presupuesto ni gasto no dicen nada: se omiten. */
+  const rubros = (porRubro.data ?? []).filter(
+    (r) => Number(r.budget_usd) || Number(r.forecast_usd) || Number(r.actual_usd) || Number(r.committed_usd)
+  )
 
   const rows = lines.data ?? []
 
@@ -40,7 +44,7 @@ export default function Desvios({ projectId }) {
         mejor cotización disponible para el item, por la cantidad presupuestada.
       </p>
 
-      {(lines.error || byCat.error) && <ErrorBox message={lines.error || byCat.error} />}
+      {lines.error && <ErrorBox message={lines.error} />}
 
       {lines.loading ? (
         <Loading />
@@ -84,27 +88,34 @@ export default function Desvios({ projectId }) {
           </section>
 
           <section style={{ display: 'grid', gap: 12 }}>
-            <h2>Por categoría</h2>
+            <h2>Por rubro</h2>
+            {porRubro.error && <ErrorBox message={porRubro.error} />}
             <Table
               columns={[
-                { key: 'c', label: 'Categoría' },
-                { key: 'b', label: 'Budget', num: true },
-                { key: 'f', label: 'Forecast', num: true },
-                { key: 'a', label: 'Actual', num: true },
-                { key: 'v', label: 'Desvío', num: true },
+                { key: 'rubro', label: 'Rubro', sort: (r) => r.sort_order },
+                { key: 'budget_usd', label: 'Budget', num: true },
+                { key: 'forecast_usd', label: 'Forecast', num: true },
+                { key: 'actual_usd', label: 'Actual', num: true },
+                { key: 'committed_usd', label: 'Comprometido', num: true },
+                { key: 'v', label: 'Desvío', num: true, sort: (r) => r.actual_usd - r.budget_usd },
               ]}
-              rows={byCat.data ?? []}
-              empty="Sin datos por categoría."
+              rows={rubros}
+              empty="Sin presupuesto ni gastos por rubro todavía."
               renderRow={(r) => (
-                <tr key={r.categoria}>
-                  <td style={{ fontWeight: 500 }}>{r.categoria}</td>
+                <tr key={r.project_rubro_id}>
+                  <td style={{ fontWeight: 500 }}>{r.rubro}</td>
                   <td className="num">{usd(r.budget_usd)}</td>
                   <td className="num">{usd(r.forecast_usd)}</td>
                   <td className="num">{usd(r.actual_usd)}</td>
+                  <td className="num">{usd(r.committed_usd)}</td>
                   <td className="num"><Var actual={r.actual_usd} baseline={r.budget_usd} /></td>
                 </tr>
               )}
             />
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
+              Por rubro cuenta todo lo gastado en ese rubro, esté o no enlazado a una línea
+              del presupuesto.
+            </p>
           </section>
         </>
       )}

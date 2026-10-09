@@ -27,6 +27,10 @@ npm run dev
 Las migraciones están en `supabase/migrations/`, en orden. Se aplican desde el SQL
 Editor de Supabase o con la CLI (`npx supabase db push`).
 
+`supabase/tests/` tiene scripts de verificación: se corren enteros en el SQL Editor
+después de migrar, arman sus propios datos dentro de una transacción y la deshacen
+al final. Si algo no anda, cortan diciendo qué.
+
 ## Roles
 
 Hay dos niveles, y es a propósito.

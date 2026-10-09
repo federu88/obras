@@ -1,41 +1,30 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAsync } from '../lib/useAsync'
 import {
   listProjects,
-  listCostCategories,
-  listSuppliers,
-  listItems,
   listCashBalances,
   listCashAccounts,
-  createExpense,
   updateExpense,
   listGastosRecientes,
   getGastoMensual,
   registrarCambio,
-  fxRateAt,
 } from '../lib/queries'
 import { usd, ars, date } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { PageHead, Table, Loading, ErrorBox, Kpi, Drawer, Field } from '../components/ui'
 import GastoForm from '../components/GastoForm'
+import CargaRapida from '../components/CargaRapida'
+import { COST_TYPES } from '../lib/costos'
 
 const hoyIso = () => new Date().toISOString().slice(0, 10)
-
-/* Un solo catálogo con tipo, no tres catálogos. Agrupa sin fragmentar el
-   historial de precios ni la comparación de proveedores. */
-const TIPOS = {
-  insumo: 'Técnicas',
-  servicio: 'Gastos del proyecto',
-  honorario: 'Honorarios',
-}
 
 /**
  * Día a día de obra.
  *
  * Pensada para quien carga veinte gastos seguidos, no para quien consulta.
- * Por eso el formulario está siempre abierto, tiene cinco campos y al guardar
- * conserva la fecha y la categoría: lo único que cambia entre un gasto y el
- * siguiente suele ser el concepto y el importe.
+ * Por eso la carga está siempre abierta y se resuelve en cuatro toques
+ * (rubro, tipo, monto, guardar), y al guardar conserva rubro, tipo y fecha:
+ * lo único que cambia entre un gasto y el siguiente suele ser el importe.
  */
 export default function DiaADia() {
   const { canManage } = useAuth()
@@ -54,9 +43,6 @@ export default function DiaADia() {
     if (!projectId && projects.data?.length) setProjectId(projects.data[0].id)
   }, [projects.data, projectId])
 
-  const categories = useAsync(listCostCategories)
-  const suppliers = useAsync(listSuppliers)
-  const items = useAsync(listItems)
   const balances = useAsync(listCashBalances)
   const accounts = useAsync(listCashAccounts)
   const gastos = useAsync(
@@ -67,66 +53,6 @@ export default function DiaADia() {
     () => (projectId ? getGastoMensual(projectId) : Promise.resolve([])),
     [projectId]
   )
-
-  /* --- Carga rápida -------------------------------------------------------- */
-  const [g, setG] = useState({
-    expense_date: hoyIso(),
-    kind: 'insumo',
-    item_id: '',
-    description: '',
-    category_id: '',
-    supplier_id: '',
-    amount: '',
-    currency: 'ARS',
-  })
-  /* Precio de referencia del item elegido. Se guarda aparte del importe para
-     poder mostrar de dónde salió y si todavía no fue corregido. */
-  const [sugerido, setSugerido] = useState(null)
-  const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState(null)
-  const conceptoRef = useRef(null)
-
-  const set = (k) => (e) => setG((f) => ({ ...f, [k]: e.target.value }))
-
-  async function agregar(e) {
-    e.preventDefault()
-    if (!projectId) return
-    setGuardando(true)
-    setError(null)
-    try {
-      const fx =
-        g.currency === 'ARS' ? await fxRateAt(g.expense_date) : null
-      if (g.currency === 'ARS' && !fx) {
-        throw new Error(
-          'No hay cotización cargada para esa fecha ni anterior. Cargá una en Configuración.'
-        )
-      }
-      await createExpense({
-        project_id: projectId,
-        description: g.description,
-        category_id: g.category_id || null,
-        item_id: g.item_id || null,
-        supplier_id: g.supplier_id || null,
-        expense_date: g.expense_date,
-        qty: 1,
-        unit_price: Number(g.amount),
-        currency: g.currency,
-        fx_usd: fx,
-        status: 'pagado',
-      })
-      /* Se conservan fecha, categoría y proveedor: en una jornada se cargan
-         varios gastos del mismo rubro y el mismo día. */
-      setG((f) => ({ ...f, description: '', amount: '', item_id: '' }))
-      setSugerido(null)
-      conceptoRef.current?.focus()
-      gastos.reload()
-      mensual.reload()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setGuardando(false)
-    }
-  }
 
   /* --- Cambio de dólares --------------------------------------------------- */
   const [editando, setEditando] = useState(null)
@@ -154,6 +80,7 @@ export default function DiaADia() {
     }
   }
 
+  const obra = (projects.data ?? []).find((p) => p.id === projectId)
   const filas = gastos.data ?? []
   const hoy = hoyIso()
   const deHoy = filas.filter((x) => x.expense_date === hoy)
@@ -164,11 +91,6 @@ export default function DiaADia() {
   const cajaUsd = (balances.data ?? []).filter((b) => b.currency === 'USD')
   const totalArs = cajaArs.reduce((a, b) => a + Number(b.balance ?? 0), 0)
   const totalUsd = cajaUsd.reduce((a, b) => a + Number(b.balance ?? 0), 0)
-
-  /* Si la migración de tipos todavía no corrió, `kind` no existe en ninguna
-     fila: en ese caso no se filtra, para no dejar el selector vacío. */
-  const hayTipos = (items.data ?? []).some((i) => i.kind)
-  const itemsDelTipo = (items.data ?? []).filter((i) => !hayTipos || i.kind === g.kind)
 
   const cuentasArs = (accounts.data ?? []).filter((a) => a.currency === 'ARS')
   const cuentasUsd = (accounts.data ?? []).filter((a) => a.currency === 'USD')
@@ -211,192 +133,40 @@ export default function DiaADia() {
 
       {/* --- Carga rápida ---------------------------------------------------- */}
       {canManage && (
-        <form className="card" onSubmit={agregar} style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: '1rem' }}>Cargar gasto</h2>
-            <button
-              type="button"
-              className="btn"
-              onClick={() =>
-                setCambio({
-                  fecha: hoyIso(),
-                  usd: '',
-                  cotizacion: '',
-                  cuentaUsd: cuentasUsd[0]?.id ?? '',
-                  cuentaArs: cuentasArs[0]?.id ?? '',
-                  nota: '',
-                })
-              }
-              disabled={!cuentasUsd.length || !cuentasArs.length}
-              title={
-                !cuentasUsd.length || !cuentasArs.length
-                  ? 'Hace falta una cuenta en pesos y una en dólares (Finanzas → Caja)'
-                  : undefined
-              }
-            >
-              Cambiar dólares
-            </button>
-          </div>
-
-          {error && <ErrorBox message={error} />}
-
-          <div
-            style={{
-              display: 'grid',
-              gap: 10,
-              gridTemplateColumns:
-                'minmax(110px,0.6fr) minmax(130px,0.9fr) minmax(190px,1.6fr) minmax(170px,1.4fr) minmax(150px,1.1fr) minmax(150px,1.1fr) minmax(100px,0.7fr) minmax(85px,0.5fr) auto',
-              alignItems: 'end',
+        <div style={{ display: 'grid', gap: 8 }}>
+          <CargaRapida
+            key={projectId}
+            projectId={projectId}
+            encargo={obra?.model === 'encargo'}
+            onSaved={() => {
+              gastos.reload()
+              mensual.reload()
             }}
+          />
+          <button
+            type="button"
+            className="btn"
+            style={{ justifySelf: 'start' }}
+            onClick={() =>
+              setCambio({
+                fecha: hoyIso(),
+                usd: '',
+                cotizacion: '',
+                cuentaUsd: cuentasUsd[0]?.id ?? '',
+                cuentaArs: cuentasArs[0]?.id ?? '',
+                nota: '',
+              })
+            }
+            disabled={!cuentasUsd.length || !cuentasArs.length}
+            title={
+              !cuentasUsd.length || !cuentasArs.length
+                ? 'Hace falta una cuenta en pesos y una en dólares (Finanzas → Caja)'
+                : undefined
+            }
           >
-            <div className="field">
-              <label>Fecha</label>
-              <input type="date" required value={g.expense_date} onChange={set('expense_date')} />
-            </div>
-
-            <div className="field">
-              <label>Tipo</label>
-              <select
-                value={g.kind}
-                onChange={(e) => setG((f) => ({ ...f, kind: e.target.value, item_id: '' }))}
-              >
-                <option value="insumo">Técnicas</option>
-                <option value="servicio">Gastos del proyecto</option>
-                <option value="honorario">Honorarios</option>
-              </select>
-            </div>
-
-            <div className="field">
-              <label>Item del catálogo</label>
-              <select
-                value={g.item_id}
-                onChange={async (e) => {
-                  const item_id = e.target.value
-                  const it = (items.data ?? []).find((i) => i.item_id === item_id)
-                  if (!it) {
-                    setSugerido(null)
-                    setG((f) => ({ ...f, item_id: '' }))
-                    return
-                  }
-
-                  /* Referencia: lo último que se pagó vale más que un promedio
-                     o que una cotización sin cerrar. */
-                  const ref =
-                    it.ultimo_precio_comprado_usd != null
-                      ? { usd: Number(it.ultimo_precio_comprado_usd), origen: 'última compra' }
-                      : it.ultimo_precio_cotizado_usd != null
-                        ? { usd: Number(it.ultimo_precio_cotizado_usd), origen: 'última cotización' }
-                        : it.precio_promedio_usd != null
-                          ? { usd: Number(it.precio_promedio_usd), origen: 'promedio histórico' }
-                          : null
-
-                  let monto = ''
-                  if (ref) {
-                    if (g.currency === 'USD') monto = String(Math.round(ref.usd * 100) / 100)
-                    else {
-                      const fx = await fxRateAt(g.expense_date)
-                      if (fx) monto = String(Math.round(ref.usd * Number(fx)))
-                    }
-                  }
-
-                  setSugerido(ref ? { ...ref, aplicado: Boolean(monto) } : null)
-                  setG((f) => ({
-                    ...f,
-                    item_id,
-                    description: it.description,
-                    category_id: it.category_id ?? f.category_id,
-                    amount: monto || f.amount,
-                  }))
-                }}
-              >
-                <option value="">Sin item — escribir a mano</option>
-                {itemsDelTipo.map((i) => (
-                  <option key={i.item_id} value={i.item_id}>
-                    {i.code} · {i.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="field">
-              <label>Concepto</label>
-              <input
-                ref={conceptoRef}
-                required
-                placeholder="Ej: Hierro del 8 · 20 barras"
-                value={g.description}
-                onChange={set('description')}
-              />
-            </div>
-
-            <div className="field">
-              <label>Categoría</label>
-              <select value={g.category_id} onChange={set('category_id')}>
-                <option value="">Sin categoría</option>
-                {(categories.data ?? []).filter((c) => c.parent_id).map((c) => (
-                  <option key={c.id} value={c.id}>{c.path}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="field">
-              <label>Proveedor</label>
-              <select value={g.supplier_id} onChange={set('supplier_id')}>
-                <option value="">—</option>
-                {(suppliers.data ?? []).map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="field">
-              <label>
-                Importe
-                {sugerido?.aplicado && (
-                  <span style={{ color: 'var(--warning)', fontWeight: 600 }}> · sugerido</span>
-                )}
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                value={g.amount}
-                onChange={(e) => {
-                  /* Apenas lo toca deja de ser una sugerencia: pasa a ser lo
-                     que realmente gastó. */
-                  setSugerido((s) => (s ? { ...s, aplicado: false } : s))
-                  setG((f) => ({ ...f, amount: e.target.value }))
-                }}
-                style={
-                  sugerido?.aplicado
-                    ? { borderColor: 'var(--warning)', background: 'var(--warning-soft)' }
-                    : undefined
-                }
-              />
-            </div>
-
-            <div className="field">
-              <label>Moneda</label>
-              <select value={g.currency} onChange={set('currency')}>
-                <option value="ARS">ARS</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-
-            <button className="btn btn-primary" type="submit" disabled={guardando || !projectId}>
-              {guardando ? '…' : 'Agregar'}
-            </button>
-          </div>
-
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
-            Elegir un item del catálogo completa el concepto, la categoría y trae el
-            <strong> precio de referencia</strong>
-            {sugerido ? ` (${sugerido.origen}: ${usd(sugerido.usd)} por unidad)` : ''}. Ese
-            importe queda marcado en amarillo hasta que lo pises con lo que gastaste de
-            verdad. Si el item no está en el catálogo, dejalo vacío y escribí a mano.
-          </p>
-        </form>
+            Cambiar dólares
+          </button>
+        </div>
       )}
 
       {/* --- Últimos gastos --------------------------------------------------- */}
@@ -410,7 +180,7 @@ export default function DiaADia() {
             columns={[
               { key: 'expense_date', label: 'Fecha' },
               { key: 'description', label: 'Concepto' },
-              { key: 'cat', label: 'Categoría', sort: (x) => x.category?.name },
+              { key: 'rubro', label: 'Rubro', sort: (x) => x.rubro?.name },
               { key: 'p', label: 'Proveedor', sort: (x) => x.supplier?.name ?? x.supplier_name },
               { key: 'i', label: 'Importe', num: true, sort: (x) => x.qty * x.unit_price },
               { key: 'amount_usd', label: 'USD', num: true },
@@ -422,7 +192,10 @@ export default function DiaADia() {
               <tr key={x.id} style={x.expense_date === hoy ? { fontWeight: 500 } : undefined}>
                 <td className="nowrap">{date(x.expense_date)}</td>
                 <td>{x.description}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{x.category?.name ?? '—'}</td>
+                <td style={{ color: 'var(--text-muted)' }}>
+                  {x.rubro?.name ?? '—'}
+                  {x.cost_type && <> · {COST_TYPES[x.cost_type] ?? x.cost_type}</>}
+                </td>
                 <td>{x.supplier?.name ?? x.supplier_name ?? '—'}</td>
                 <td className="num">
                   {new Intl.NumberFormat('es-AR').format(x.qty * x.unit_price)} {x.currency}

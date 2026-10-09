@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useAsync } from '../lib/useAsync'
 import {
-  listCostCategories,
+  listProjectRubros,
   listSuppliers,
   listItemsPlain,
   listBudgetLines,
   fxRateAt,
 } from '../lib/queries'
 import { usd } from '../lib/format'
+import { COST_TYPES } from '../lib/costos'
 import { Drawer, Field, ErrorBox } from './ui'
 
 /**
@@ -38,7 +39,8 @@ export const PURCHASE_STAGE = {
 const VACIO = {
   expense_date: new Date().toISOString().slice(0, 10),
   description: '',
-  category_id: '',
+  project_rubro_id: '',
+  cost_type: 'materiales',
   item_id: '',
   supplier_id: '',
   supplier_name: '',
@@ -64,7 +66,8 @@ function desdeGasto(g) {
     f[k] = v == null ? '' : String(v)
   }
   // Las relaciones vienen anidadas cuando el listado las expande.
-  f.category_id = g.category_id ?? g.category?.id ?? ''
+  f.project_rubro_id = g.project_rubro_id ?? g.rubro?.id ?? ''
+  f.cost_type = g.cost_type ?? 'materiales'
   f.supplier_id = g.supplier_id ?? g.supplier?.id ?? ''
   f.item_id = g.item_id ?? g.item?.id ?? ''
   f.status = g.status ?? 'pagado'
@@ -78,7 +81,10 @@ export default function GastoForm({ gasto, projectId, encargo = false, onClose, 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
-  const categories = useAsync(listCostCategories)
+  const rubros = useAsync(
+    () => (projectId ? listProjectRubros(projectId) : Promise.resolve([])),
+    [projectId]
+  )
   const suppliers = useAsync(listSuppliers)
   const items = useAsync(listItemsPlain)
   const budget = useAsync(
@@ -119,7 +125,10 @@ export default function GastoForm({ gasto, projectId, encargo = false, onClose, 
       await onSave({
         expense_date: form.expense_date,
         description: form.description,
-        category_id: form.category_id || null,
+        /* Sin rubro elegido, la base lo clasifica por la categoría del ítem
+           o lo deja en "Sin clasificar". */
+        project_rubro_id: form.project_rubro_id || null,
+        cost_type: form.cost_type,
         item_id: form.item_id || null,
         supplier_id: form.supplier_id || null,
         supplier_name: form.supplier_name || null,
@@ -163,11 +172,21 @@ export default function GastoForm({ gasto, projectId, encargo = false, onClose, 
         <input required value={form.description} onChange={set('description')} />
       </Field>
 
-      <Field label="Categoría">
-        <select value={form.category_id} onChange={set('category_id')}>
-          <option value="">Sin categoría</option>
-          {(categories.data ?? []).filter((c) => c.parent_id).map((c) => (
-            <option key={c.id} value={c.id}>{c.path}</option>
+      <Field label="Rubro">
+        <select value={form.project_rubro_id} onChange={set('project_rubro_id')}>
+          <option value="">Sin clasificar</option>
+          {(rubros.data ?? [])
+            .filter((r) => r.is_active || r.id === form.project_rubro_id)
+            .map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+        </select>
+      </Field>
+
+      <Field label="Tipo de costo">
+        <select value={form.cost_type} onChange={set('cost_type')}>
+          {Object.entries(COST_TYPES).map(([k, label]) => (
+            <option key={k} value={k}>{label}</option>
           ))}
         </select>
       </Field>
@@ -189,8 +208,15 @@ export default function GastoForm({ gasto, projectId, encargo = false, onClose, 
         <input type="number" step="0.0001" min="0" required value={form.unit_price} onChange={set('unit_price')} />
       </Field>
 
+      {gasto?.receipt_id && (
+        <div className="notice">
+          Es una línea de un comprobante: la moneda y la cotización son las del
+          comprobante. Si cambian, se cambian ahí.
+        </div>
+      )}
+
       <Field label="Moneda">
-        <select value={form.currency} onChange={set('currency')}>
+        <select value={form.currency} onChange={set('currency')} disabled={Boolean(gasto?.receipt_id)}>
           <option value="ARS">ARS</option>
           <option value="USD">USD</option>
         </select>
@@ -198,7 +224,7 @@ export default function GastoForm({ gasto, projectId, encargo = false, onClose, 
 
       {form.currency === 'ARS' && (
         <Field label="Cotización (ARS por USD)" hint="Sugerida por la fecha. Cambiala si pagaste a otro cambio.">
-          <input type="number" step="0.0001" min="0.0001" required value={form.fx_usd} onChange={set('fx_usd')} />
+          <input type="number" step="0.0001" min="0.0001" required value={form.fx_usd} onChange={set('fx_usd')} disabled={Boolean(gasto?.receipt_id)} />
         </Field>
       )}
 

@@ -409,3 +409,79 @@ table.data tbody tr:hover {
   border-left: 1px solid var(--border);
   padding: 4px 0 4px 5px;
 }
+
+/* --- Chips: elegir una opción con un toque ------------------------------- */
+/* Pensados para el celular en la obra: blancos de 44px de alto como mínimo,
+   que es lo que pide un dedo con guantes de trabajo. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.chip:hover {
+  background: var(--surface-2);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.chip-sm {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+
+/* El monto de la carga rápida: grande, que se lea sin anteojos. */
+.monto-grande {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.monto-grande:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Campos sueltos (líneas de un comprobante, filas de un desglose): el mismo
+   aspecto que .field, sin la etiqueta encima. */
+.campos input:not([type='checkbox']):not([type='file']),
+.campos select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.campos input:focus,
+.campos select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}

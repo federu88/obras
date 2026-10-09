@@ -54,6 +54,7 @@ const NAV = [
     children: [
       { to: '/finanzas/cashflow', label: 'Cashflow' },
       { to: '/finanzas/pnl', label: 'P&L' },
+      { to: '/finanzas/rubros', label: 'Costos por rubro' },
       { to: '/finanzas/capital', label: 'Movimientos de capital' },
       { to: '/finanzas/caja', label: 'Caja y cambios' },
       { to: '/finanzas/dolar', label: 'Dólar' },

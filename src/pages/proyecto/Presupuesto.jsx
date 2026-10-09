@@ -7,7 +7,7 @@ import {
   deleteBudgetLines,
   updateBudgetLine,
   getBudgetLine,
-  listCostCategories,
+  listProjectRubros,
   listItemsPlain,
   listTasks,
 } from '../../lib/queries'
@@ -19,7 +19,9 @@ import PlanificadorDrawer from '../../components/PlanificadorDrawer'
 const MES = new Intl.DateTimeFormat('es-AR', { month: 'short', year: 'numeric' })
 
 const EMPTY = {
+  /* La categoría ya no se elige: se conserva la que tenga una línea vieja. */
   category_id: '',
+  project_rubro_id: '',
   item_id: '',
   description: '',
   unit: 'un',
@@ -52,7 +54,7 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
   const [formError, setFormError] = useState(null)
 
   const lines = useAsync(() => listBudgetLines(projectId), [projectId])
-  const categories = useAsync(listCostCategories)
+  const rubros = useAsync(() => listProjectRubros(projectId), [projectId])
   const items = useAsync(listItemsPlain)
   const tasks = useAsync(() => listTasks(projectId), [projectId])
   const [planificando, setPlanificando] = useState(false)
@@ -68,6 +70,7 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
     try {
       const payload = {
         category_id: form.category_id || null,
+        project_rubro_id: form.project_rubro_id || null,
         item_id: form.item_id || null,
         description: form.description,
         unit: form.unit || 'un',
@@ -98,6 +101,7 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
     const full = await getBudgetLine(r.budget_line_id)
     setForm({
       category_id: full.category_id ?? '',
+      project_rubro_id: full.project_rubro_id ?? '',
       item_id: full.item_id ?? '',
       description: full.description ?? '',
       unit: full.unit ?? 'un',
@@ -231,7 +235,7 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
       : []),
     { key: 'planned_date', label: 'Fecha prevista' },
     { key: 'actividad', label: 'Actividad' },
-    { key: 'categoria', label: 'Categoría' },
+    { key: 'rubro', label: 'Rubro', sort: (r) => r.rubro_orden },
     { key: 'description', label: 'Item' },
     { key: 'qty_original', label: 'Cant.', num: true },
     { key: 'price_original_usd', label: 'Precio un.', num: true },
@@ -374,7 +378,7 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
                 )}
                 <td className="nowrap">{date(r.planned_date)}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{r.actividad ?? '—'}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{r.categoria ?? '—'}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{r.rubro ?? r.categoria ?? '—'}</td>
                 <td>{r.description}</td>
                 <td className="num">{r.qty_original} {r.unit}</td>
                 <td className="num">{usd(r.price_original_usd)}</td>
@@ -460,13 +464,13 @@ export default function Presupuesto({ projectId, encargo = false, onChange }) {
         >
           {formError && <ErrorBox message={formError} />}
 
-          <Field label="Categoría">
-            <select value={form.category_id} onChange={set('category_id')}>
-              <option value="">Sin categoría</option>
-              {(categories.data ?? [])
-                .filter((c) => c.parent_id)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>{c.path}</option>
+          <Field label="Rubro">
+            <select value={form.project_rubro_id} onChange={set('project_rubro_id')}>
+              <option value="">Sin clasificar</option>
+              {(rubros.data ?? [])
+                .filter((r) => r.is_active || r.id === form.project_rubro_id)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
             </select>
           </Field>
