@@ -128,7 +128,8 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
     } catch (err) {
       setError(
         /permission denied/i.test(err.message)
-          ? 'La base de datos todavía no permite borrar gastos: falta aplicar en Supabase la migración 0029_borrar_gastos.sql.'
+          ? 'La base de datos todavía no permite borrar gastos: falta aplicar en Supabase la migración ' +
+              `0029_borrar_gastos.sql. (Detalle: ${err.message})`
           : err.message
       )
     } finally {
