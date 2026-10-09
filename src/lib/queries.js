@@ -205,6 +205,49 @@ export const listFxOperations = () =>
 export const createFxOperation = (payload) =>
   supabase.from('fx_operations').insert(payload).select().single().then(unwrap)
 
+/* --- Billetera de obra ---------------------------------------------------- */
+
+/** Entradas, cambios y gastos de la billetera de una obra (vista wallet_ledger). */
+export const listWalletLedger = (projectId) =>
+  supabase
+    .from('wallet_ledger')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('fecha', { ascending: false })
+    .then(unwrap)
+
+/** La conciliación de la billetera, en USD y en pesos (vista wallet_reconciliation). */
+export const getWalletReconciliation = (projectId) =>
+  supabase
+    .from('wallet_reconciliation')
+    .select('*')
+    .eq('project_id', projectId)
+    .single()
+    .then(unwrap)
+
+export const listWalletCounts = (projectId) =>
+  supabase
+    .from('wallet_counts')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('count_date', { ascending: false })
+    .then(unwrap)
+
+export const createWalletCount = (payload) =>
+  supabase.from('wallet_counts').insert(payload).select().single().then(unwrap)
+
+/** Cambio de dólares a pesos cargado desde la billetera, sin cuentas de caja. */
+export const registrarCambioBilletera = ({ projectId, fecha, usd, cotizacion, nota }) =>
+  supabase
+    .rpc('registrar_cambio_billetera', {
+      p_project_id: projectId,
+      p_fecha: fecha,
+      p_usd: usd,
+      p_cotizacion: cotizacion,
+      p_nota: nota || null,
+    })
+    .then(unwrap)
+
 /* --- Cashflow ------------------------------------------------------------- */
 
 export const listCashflowConsolidado = () =>

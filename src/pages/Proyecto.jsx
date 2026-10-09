@@ -7,6 +7,7 @@ import { Loading, ErrorBox, Badge, Kpi } from '../components/ui'
 import Presupuesto from './proyecto/Presupuesto'
 import Gastos from './proyecto/Gastos'
 import Ingresos from './proyecto/Ingresos'
+import Billetera from './proyecto/Billetera'
 import Desvios from './proyecto/Desvios'
 import Cronograma from './proyecto/Cronograma'
 import Conciliacion from './proyecto/Conciliacion'
@@ -31,6 +32,7 @@ const TABS_COMUNES = [
   ['presupuesto', 'Presupuesto'],
   ['gastos', 'Gastos'],
   ['ingresos', 'Ingresos'],
+  ['billetera', 'Billetera'],
   ['desvios', 'Desvíos'],
   ['cronograma', 'Cronograma'],
 ]
@@ -195,6 +197,7 @@ export default function Proyecto() {
       {tab === 'presupuesto' && <Presupuesto projectId={id} encargo={esEncargo} onChange={pnl.reload} />}
       {tab === 'gastos' && <Gastos projectId={id} encargo={esEncargo} onChange={pnl.reload} />}
       {tab === 'ingresos' && <Ingresos projectId={id} onChange={pnl.reload} />}
+      {tab === 'billetera' && <Billetera projectId={id} encargo={esEncargo} />}
       {tab === 'desvios' && <Desvios projectId={id} />}
       {tab === 'cronograma' && <Cronograma projectId={id} />}
       {tab === 'conciliacion' && <Conciliacion projectId={id} />}
