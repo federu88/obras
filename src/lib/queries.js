@@ -151,8 +151,8 @@ export const createExpense = (payload) =>
 export const updateExpense = (id, patch) =>
   supabase.from('expenses').update(patch).eq('id', id).select().single().then(unwrap)
 
-export const updateExpenses = (ids, patch) =>
-  supabase.from('expenses').update(patch).in('id', ids).select().then(unwrap)
+export const deleteExpenses = (ids) =>
+  supabase.from('expenses').delete().in('id', ids).select('id').then(unwrap)
 
 /* --- Ingresos ------------------------------------------------------------- */
 

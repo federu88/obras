@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAsync } from '../../lib/useAsync'
-import { listExpenses, createExpense, updateExpense, updateExpenses } from '../../lib/queries'
+import { listExpenses, createExpense, updateExpense, deleteExpenses } from '../../lib/queries'
 import { usd, date } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { Table, Loading, ErrorBox, Badge } from '../../components/ui'
@@ -21,8 +21,8 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
   /* null = cerrado · 'nuevo' = alta · un objeto = edición de ese gasto */
   const [abierto, setAbierto] = useState(null)
   const [seleccion, setSeleccion] = useState(() => new Set())
-  const [anulando, setAnulando] = useState(false)
-  const [anularError, setAnularError] = useState(null)
+  const [borrando, setBorrando] = useState(false)
+  const [borrarError, setBorrarError] = useState(null)
 
   const expenses = useAsync(() => listExpenses(projectId), [projectId])
 
@@ -33,11 +33,10 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
 
   const rows = expenses.data ?? []
 
-  /* Solo se eligen los que todavía se pueden anular. La selección se cruza con
-     las filas actuales para que un gasto que ya no está no quede elegido. */
-  const anulables = rows.filter((e) => e.status !== 'anulado')
-  const elegidos = anulables.filter((e) => seleccion.has(e.id))
-  const todos = anulables.length > 0 && elegidos.length === anulables.length
+  /* La selección se cruza con las filas actuales para que un gasto que ya no
+     está no quede elegido. */
+  const elegidos = rows.filter((e) => seleccion.has(e.id))
+  const todos = rows.length > 0 && elegidos.length === rows.length
 
   function alternarGasto(id) {
     setSeleccion((s) => {
@@ -49,22 +48,36 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
   }
 
   function alternarTodos() {
-    setSeleccion(todos ? new Set() : new Set(anulables.map((e) => e.id)))
+    setSeleccion(todos ? new Set() : new Set(rows.map((e) => e.id)))
   }
 
-  async function anular(gastos) {
+  async function borrar(gastos) {
     if (!gastos.length) return
     const aviso =
       gastos.length === 1
-        ? `¿Anular el gasto "${gastos[0].description}"?`
-        : `¿Anular ${gastos.length} gastos?`
-    if (!window.confirm(`${aviso} Deja de contar en Actual y Comprometido; queda en la lista como anulado.`)) return
+        ? `¿Borrar el gasto "${gastos[0].description}"?`
+        : `¿Borrar ${gastos.length} gastos?`
+    if (
+      !window.confirm(
+        `${aviso} No se puede deshacer.\n\n` +
+          'Si tenían un pago registrado en Caja, ese movimiento no se borra: queda sin gasto asociado.'
+      )
+    )
+      return
 
-    setAnulando(true)
-    setAnularError(null)
+    setBorrando(true)
+    setBorrarError(null)
     try {
       const ids = gastos.map((e) => e.id)
-      await updateExpenses(ids, { status: 'anulado' })
+      const borrados = await deleteExpenses(ids)
+      /* Sin permiso de borrar, la base no siempre da error: puede devolver cero
+         filas. Si no se borró lo pedido, hay que decirlo. */
+      if ((borrados?.length ?? 0) < ids.length) {
+        setBorrarError(
+          'No se pudieron borrar todos los gastos. Falta aplicar en Supabase la migración ' +
+            '0029_borrar_gastos.sql, o tu usuario no tiene permiso para borrar.'
+        )
+      }
       setSeleccion((s) => {
         const n = new Set(s)
         for (const id of ids) n.delete(id)
@@ -72,9 +85,13 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
       })
       recargar()
     } catch (err) {
-      setAnularError(err.message)
+      setBorrarError(
+        /permission denied/i.test(err.message)
+          ? 'La base de datos todavía no permite borrar gastos: falta aplicar en Supabase la migración 0029_borrar_gastos.sql.'
+          : err.message
+      )
     } finally {
-      setAnulando(false)
+      setBorrando(false)
     }
   }
 
@@ -102,7 +119,7 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
 
       {expenses.error && <ErrorBox message={expenses.error} />}
 
-      {canManage && anulables.length > 0 && !expenses.loading && (
+      {canManage && rows.length > 0 && !expenses.loading && (
         <div
           style={{
             display: 'flex',
@@ -117,7 +134,7 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
         >
           {elegidos.length === 0 ? (
             <button className="btn" onClick={alternarTodos}>
-              Seleccionar todos ({anulables.length})
+              Seleccionar todos ({rows.length})
             </button>
           ) : (
             <>
@@ -130,21 +147,21 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
               <span style={{ flex: 1 }} />
               {!todos && (
                 <button className="btn" onClick={alternarTodos}>
-                  Seleccionar todos ({anulables.length})
+                  Seleccionar todos ({rows.length})
                 </button>
               )}
-              <button className="btn" onClick={() => setSeleccion(new Set())} disabled={anulando}>
+              <button className="btn" onClick={() => setSeleccion(new Set())} disabled={borrando}>
                 Quitar selección
               </button>
-              <button className="btn btn-primary" onClick={() => anular(elegidos)} disabled={anulando}>
-                {anulando ? 'Anulando…' : 'Anular seleccionados'}
+              <button className="btn btn-primary" onClick={() => borrar(elegidos)} disabled={borrando}>
+                {borrando ? 'Borrando…' : 'Borrar seleccionados'}
               </button>
             </>
           )}
         </div>
       )}
 
-      {anularError && <ErrorBox message={anularError} />}
+      {borrarError && <ErrorBox message={borrarError} />}
 
       {expenses.loading ? (
         <Loading />
@@ -161,7 +178,6 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
                         type="checkbox"
                         aria-label="Seleccionar todos los gastos"
                         checked={todos}
-                        disabled={!anulables.length}
                         ref={(el) => { if (el) el.indeterminate = elegidos.length > 0 && !todos }}
                         onChange={alternarTodos}
                       />
@@ -185,19 +201,17 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
               key={e.id}
               style={{
                 opacity: e.status === 'anulado' ? 0.5 : 1,
-                background: seleccion.has(e.id) && e.status !== 'anulado' ? 'var(--accent-soft)' : undefined,
+                background: seleccion.has(e.id) ? 'var(--accent-soft)' : undefined,
               }}
             >
               {canManage && (
                 <td>
-                  {e.status !== 'anulado' && (
-                    <input
-                      type="checkbox"
-                      aria-label={`Seleccionar ${e.description}`}
-                      checked={seleccion.has(e.id)}
-                      onChange={() => alternarGasto(e.id)}
-                    />
-                  )}
+                  <input
+                    type="checkbox"
+                    aria-label={`Seleccionar ${e.description}`}
+                    checked={seleccion.has(e.id)}
+                    onChange={() => alternarGasto(e.id)}
+                  />
                 </td>
               )}
               <td className="nowrap">{date(e.expense_date)}</td>
@@ -219,11 +233,9 @@ export default function Gastos({ projectId, encargo = false, onChange }) {
                     <button className="icon-btn" onClick={() => setAbierto(e)}>
                       Editar
                     </button>
-                    {e.status !== 'anulado' && (
-                      <button className="icon-btn" onClick={() => anular([e])} disabled={anulando}>
-                        Anular
-                      </button>
-                    )}
+                    <button className="icon-btn" onClick={() => borrar([e])} disabled={borrando}>
+                      Borrar
+                    </button>
                   </>
                 )}
               </td>
