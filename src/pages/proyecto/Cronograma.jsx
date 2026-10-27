@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAsync } from '../../lib/useAsync'
 import {
   listTasks,
@@ -400,7 +401,7 @@ export default function Cronograma({ projectId }) {
           {formError && <ErrorBox message={formError} />}
 
           <div className="notice">
-            Toma las etapas de <strong>Catálogo › Etapas de obra</strong> y las convierte
+            Toma las <Link to="/catalogo/etapas">etapas de obra</Link> y las convierte
             en el cronograma de esta obra, encadenando las fechas en días hábiles desde
             la fecha de arranque. Después son actividades de esta obra como cualquier
             otra: editarlas no toca la plantilla.

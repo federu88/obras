@@ -98,18 +98,20 @@ export default function App() {
             <Route path="finanzas/caja" element={<Caja />} />
             <Route path="finanzas/dolar" element={<Dolar />} />
 
-            <Route path="catalogo" element={<Navigate to="/catalogo/tecnicas" replace />} />
-            <Route path="catalogo/tecnicas" element={<Catalogo kind="insumo" />} />
-            <Route path="catalogo/gastos" element={<Catalogo kind="servicio" />} />
-            <Route path="catalogo/honorarios" element={<Catalogo kind="honorario" />} />
-            <Route path="catalogo/etapas" element={<Etapas />} />
-            <Route path="catalogo/proveedores" element={<Proveedores />} />
+            <Route path="catalogo" element={<Catalogo />} />
+            {/* Las secciones viejas del catálogo llevan al único que queda. */}
+            <Route path="catalogo/tecnicas" element={<Navigate to="/catalogo" replace />} />
+            <Route path="catalogo/gastos" element={<Navigate to="/catalogo" replace />} />
+            <Route path="catalogo/honorarios" element={<Navigate to="/catalogo" replace />} />
 
             {/* Fuera del menú, pero siguen accesibles: las cotizaciones
-                alimentan el historial de precios y las órdenes muestran el
-                circuito de compra. */}
-            <Route path="compras" element={<Navigate to="/catalogo/tecnicas" replace />} />
-            <Route path="compras/items" element={<Navigate to="/catalogo/tecnicas" replace />} />
+                alimentan el historial de precios, las órdenes muestran el
+                circuito de compra, las etapas arman el cronograma y los
+                proveedores se eligen al registrar un precio o un gasto. */}
+            <Route path="catalogo/etapas" element={<Etapas />} />
+            <Route path="catalogo/proveedores" element={<Proveedores />} />
+            <Route path="compras" element={<Navigate to="/catalogo" replace />} />
+            <Route path="compras/items" element={<Navigate to="/catalogo" replace />} />
             <Route path="compras/proveedores" element={<Navigate to="/catalogo/proveedores" replace />} />
             <Route path="compras/cotizaciones" element={<Cotizaciones />} />
             <Route path="compras/ordenes" element={<Ordenes />} />

@@ -109,3 +109,15 @@ export const normalizar = (s) =>
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+
+/**
+ * "lava  MANOS" -> "Lava Manos": primera letra de cada palabra en mayúscula y
+ * el resto en minúscula. Igual que titulo() en la base, que es la que manda;
+ * acá sirve para que se vea así apenas se termina de escribir.
+ */
+export const titulo = (s) =>
+  (s ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('es')
+    .replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_, sep, letra) => sep + letra.toLocaleUpperCase('es'))

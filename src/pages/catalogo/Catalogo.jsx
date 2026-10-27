@@ -4,9 +4,8 @@ import {
   listItems,
   createItem,
   updateItem,
-  getItem,
-  listCostCategories,
-  suggestItemCode,
+  listCatalogCategories,
+  createCatalogCategory,
   listItemPriceHistory,
   listSupplierPrices,
   createPricePoint,
@@ -17,29 +16,9 @@ import {
   resolverMarca,
   resolverTipoItem,
 } from '../../lib/queries'
-import { usd, pct, date, normalizar } from '../../lib/format'
+import { usd, pct, date, normalizar, titulo } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { PageHead, Table, Loading, ErrorBox, Drawer, Field, Badge } from '../../components/ui'
-
-/* Los tres catálogos son el mismo catálogo con distinto tipo. Así el historial
-   de precios y la comparación de proveedores funcionan igual para todos. */
-export const KINDS = {
-  insumo: {
-    titulo: 'Técnicas',
-    subtitulo: 'Materiales y mano de obra de la construcción.',
-    etiqueta: 'Técnica',
-  },
-  servicio: {
-    titulo: 'Gastos del proyecto',
-    subtitulo: 'Expensas, luz, gas, seguros — lo que se repite todos los meses.',
-    etiqueta: 'Gasto del proyecto',
-  },
-  honorario: {
-    titulo: 'Honorarios',
-    subtitulo: 'Escribanía, gestoría, arquitectura, comisiones.',
-    etiqueta: 'Honorario',
-  },
-}
 
 const UNITS = ['un', 'm', 'm2', 'm3', 'kg', 'tn', 'lt', 'bolsa', 'ml', 'global', 'jornal']
 
@@ -49,17 +28,29 @@ const FUENTE = {
   compra: ['Compra', 'ok'],
 }
 
-const vacio = (kind) => ({
+const vacio = () => ({
   code: '',
-  description: '',
-  category_id: '',
-  unit: 'un',
-  spec: '',
-  kind,
-  marca: '',
+  catalog_category_id: '',
   tipo: '',
-  model_code: '',
+  marca: '',
+  unit: 'un',
+  note: '',
 })
+
+/* Para mostrar cómo va a quedar el código antes de guardar. Lo arma la base
+   (completar_item); esto solo lo anticipa, sin el número. */
+const prefijoTipo = (tipo) =>
+  normalizar(tipo).replace(/[^a-z]/g, '').slice(0, 3).toUpperCase() || 'ITM'
+
+const NUEVA_CATEGORIA = '__nueva__'
+
+const filtroStyle = {
+  padding: '9px 12px',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 'var(--radius-sm)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+}
 
 /**
  * Campo de texto que apunta a una lista canonica.
@@ -73,18 +64,24 @@ const vacio = (kind) => ({
  * El aviso es una cortesia: quien impide el duplicado es el indice unico de la
  * base, que está sobre la forma normalizada y no sobre el texto.
  */
-function CampoCanonico({ label, hint, value, onChange, opciones, listId }) {
+function CampoCanonico({ label, hint, value, onChange, opciones, listId, required }) {
   const n = normalizar(value)
   const existente = n ? opciones.find((o) => normalizar(o.name) === n) : null
   const esNuevo = Boolean(n) && !existente
 
   return (
     <Field label={label} hint={hint}>
-      <input list={listId} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input
+        list={listId}
+        required={required}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => onChange(titulo(value))}
+      />
       <datalist id={listId}>
         {opciones.map((o) => <option key={o.id} value={o.name} />)}
       </datalist>
-      {existente && normalizar(existente.name) === n && existente.name !== value.trim() && (
+      {existente && existente.name !== value.trim() && (
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           Ya existe como <strong>{existente.name}</strong>: se va a usar ese, no se
           crea uno nuevo.
@@ -107,23 +104,26 @@ const PRECIO_VACIO = {
   note: '',
 }
 
-export default function Catalogo({ kind = 'insumo' }) {
+export default function Catalogo() {
   const { canManage } = useAuth()
-  const cfg = KINDS[kind] ?? KINDS.insumo
 
   const [abierto, setAbierto] = useState(null)
-  const [form, setForm] = useState(() => vacio(kind))
+  const [form, setForm] = useState(vacio)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
   const [busqueda, setBusqueda] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [nuevaCategoria, setNuevaCategoria] = useState(null)
   const [abierto_id, setAbiertoId] = useState(null)
 
   const [precio, setPrecio] = useState(null)
   const [guardandoPrecio, setGuardandoPrecio] = useState(false)
 
   const items = useAsync(listItems)
-  const categories = useAsync(listCostCategories)
+  const categories = useAsync(listCatalogCategories)
   const suppliers = useAsync(listSuppliers)
+  const marcas = useAsync(listBrands)
+  const tipos = useAsync(listItemTypes)
   const historial = useAsync(
     () => (abierto_id ? listItemPriceHistory(abierto_id) : Promise.resolve(null)),
     [abierto_id]
@@ -135,37 +135,54 @@ export default function Catalogo({ kind = 'insumo' }) {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
-  /* Mientras la migración de tipos no esté aplicada, `kind` no existe en
-     ninguna fila: en ese caso se muestra todo en vez de nada. */
-  const hayTipos = (items.data ?? []).some((i) => i.kind)
-
   const filas = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    return (items.data ?? []).filter((i) => {
-      if (hayTipos && i.kind !== kind) return false
-      if (!q) return true
-      return (
-        String(i.code).toLowerCase().includes(q) ||
-        String(i.description).toLowerCase().includes(q) ||
-        String(i.categoria ?? '').toLowerCase().includes(q) ||
-        String(i.marca ?? '').toLowerCase().includes(q) ||
-        String(i.tipo ?? '').toLowerCase().includes(q)
+    const q = normalizar(busqueda)
+    return (items.data ?? [])
+      .filter((i) => {
+        if (filtroCategoria && i.catalog_category_id !== filtroCategoria) return false
+        if (!q) return true
+        return [i.code, i.tipo, i.marca, i.categoria, i.nota].some((v) =>
+          normalizar(v).includes(q)
+        )
+      })
+      .sort(
+        (a, b) =>
+          (a.categoria_orden ?? 9999) - (b.categoria_orden ?? 9999) ||
+          String(a.code).localeCompare(String(b.code))
       )
-    })
-  }, [items.data, busqueda, kind, hayTipos])
+  }, [items.data, busqueda, filtroCategoria])
 
-  const marcas = useAsync(listBrands)
-  const tipos = useAsync(listItemTypes)
+  const categoriaElegida = (categories.data ?? []).find(
+    (c) => c.id === form.catalog_category_id
+  )
+  let codigo = form.code
+  if (categoriaElegida && form.tipo.trim()) {
+    const base = `${categoriaElegida.code}-${prefijoTipo(form.tipo)}-`
+    if (!codigo.startsWith(base)) codigo = `${base}…`
+  }
 
-  async function onCategory(e) {
-    const category_id = e.target.value
-    setForm((f) => ({ ...f, category_id }))
-    if (!category_id) return
+  function onCategory(e) {
+    const v = e.target.value
+    if (v === NUEVA_CATEGORIA) {
+      setNuevaCategoria({ name: '', error: null })
+      return
+    }
+    setForm((f) => ({ ...f, catalog_category_id: v }))
+  }
+
+  async function agregarCategoria() {
+    const name = titulo(nuevaCategoria.name)
+    if (!name) return
+    const existente = (categories.data ?? []).find(
+      (c) => normalizar(c.name) === normalizar(name)
+    )
     try {
-      const code = await suggestItemCode(category_id)
-      if (code) setForm((f) => (f.code ? f : { ...f, code }))
-    } catch {
-      /* la sugerencia es una comodidad, no un requisito */
+      const c = existente ?? (await createCatalogCategory(name))
+      if (!existente) categories.reload()
+      setForm((f) => ({ ...f, catalog_category_id: c.id }))
+      setNuevaCategoria(null)
+    } catch (err) {
+      setNuevaCategoria((n) => ({ ...n, error: err.message }))
     }
   }
 
@@ -176,24 +193,22 @@ export default function Catalogo({ kind = 'insumo' }) {
       /* Resolver primero: devuelve el id del que ya existe si el nombre
          normalizado coincide, y solo crea cuando de verdad es nuevo. */
       const [brand_id, item_type_id] = await Promise.all([
-        form.marca ? resolverMarca(form.marca) : null,
-        form.tipo ? resolverTipoItem(form.tipo) : null,
+        form.marca.trim() ? resolverMarca(titulo(form.marca)) : null,
+        resolverTipoItem(titulo(form.tipo)),
       ])
 
+      /* code y description los completa la base: el código sale de la
+         categoría y el "qué es"; la descripción, del "qué es" y la marca. */
       const payload = {
-        code: form.code,
-        description: form.description,
-        category_id: form.category_id || null,
-        unit: form.unit,
-        spec: form.spec || null,
-        kind: form.kind,
-        brand_id,
+        catalog_category_id: form.catalog_category_id || null,
         item_type_id,
-        model_code: form.model_code || null,
+        brand_id,
+        unit: form.unit,
+        note: form.note.trim() || null,
       }
       if (abierto === 'nuevo') await createItem(payload)
       else await updateItem(abierto.item_id, payload)
-      setForm(vacio(kind))
+      setForm(vacio())
       setAbierto(null)
       items.reload()
       marcas.reload()
@@ -236,28 +251,32 @@ export default function Catalogo({ kind = 'insumo' }) {
   return (
     <div>
       <PageHead
-        title={cfg.titulo}
-        subtitle={cfg.subtitulo}
+        title="Gastos y compras"
+        subtitle="Todo lo que se compra o se paga en una obra, ordenado por categoría."
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={filtroCategoria}
+              onChange={(e) => setFiltroCategoria(e.target.value)}
+              style={filtroStyle}
+            >
+              <option value="">Todas las categorías</option>
+              {(categories.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
             <input
               placeholder="Buscar…"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              style={{
-                padding: '9px 12px',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--surface)',
-                color: 'var(--text)',
-                minWidth: 180,
-              }}
+              style={{ ...filtroStyle, minWidth: 180 }}
             />
             {canManage && (
               <button
                 className="btn btn-primary"
                 onClick={() => {
-                  setForm(vacio(kind))
+                  setForm({ ...vacio(), catalog_category_id: filtroCategoria })
+                  setNuevaCategoria(null)
                   setAbierto('nuevo')
                 }}
               >
@@ -283,10 +302,9 @@ export default function Catalogo({ kind = 'insumo' }) {
         <Table
           columns={[
             { key: 'code', label: 'Código' },
-            { key: 'description', label: 'Item' },
-            { key: 'marca', label: 'Marca' },
-            { key: 'tipo', label: 'Qué es' },
             { key: 'categoria', label: 'Categoría' },
+            { key: 'tipo', label: 'Qué es' },
+            { key: 'marca', label: 'Marca' },
             { key: 'unit', label: 'Unidad' },
             { key: 'precio_actual_usd', label: 'Precio vigente', num: true },
             { key: 'fecha_precio', label: 'Actualizado' },
@@ -296,7 +314,7 @@ export default function Catalogo({ kind = 'insumo' }) {
             { key: 'act', label: '', sort: false },
           ]}
           rows={filas}
-          empty="Todavía no hay items de este tipo."
+          empty="Todavía no hay nada cargado. Empezá con + Nuevo."
           renderRow={(i) => {
             const [label, tone] = FUENTE[i.origen_precio] ?? [i.origen_precio ?? '—', null]
             return (
@@ -308,11 +326,17 @@ export default function Catalogo({ kind = 'insumo' }) {
                   background: abierto_id === i.item_id ? 'var(--accent-soft)' : undefined,
                 }}
               >
-                <td style={{ fontWeight: 500 }}>{i.code}</td>
-                <td>{i.description}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{i.marca ?? '—'}</td>
-                <td style={{ color: 'var(--text-muted)' }}>{i.tipo ?? '—'}</td>
+                <td className="nowrap" style={{ fontWeight: 500 }}>{i.code}</td>
                 <td style={{ color: 'var(--text-muted)' }}>{i.categoria ?? '—'}</td>
+                <td>
+                  {i.tipo ?? i.description}
+                  {i.nota && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {i.nota}
+                    </div>
+                  )}
+                </td>
+                <td style={{ color: 'var(--text-muted)' }}>{i.marca ?? '—'}</td>
                 <td>{i.unit}</td>
                 <td className="num" style={{ fontWeight: 600 }}>
                   {usd(i.precio_actual_usd)}
@@ -343,22 +367,18 @@ export default function Catalogo({ kind = 'insumo' }) {
                       </button>
                       <button
                         className="icon-btn"
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.stopPropagation()
-                          const full = await getItem(i.item_id)
+                          /* La fila del listado ya trae los nombres resueltos. */
                           setForm({
-                            code: full.code ?? '',
-                            description: full.description ?? '',
-                            category_id: full.category_id ?? '',
-                            unit: full.unit ?? 'un',
-                            spec: full.spec ?? '',
-                            kind: full.kind ?? kind,
-                            /* La fila del listado ya trae los nombres
-                               resueltos; el registro crudo solo los ids. */
-                            marca: i.marca ?? '',
+                            code: i.code ?? '',
+                            catalog_category_id: i.catalog_category_id ?? '',
                             tipo: i.tipo ?? '',
-                            model_code: full.model_code ?? '',
+                            marca: i.marca ?? '',
+                            unit: i.unit ?? 'un',
+                            note: i.nota ?? '',
                           })
+                          setNuevaCategoria(null)
                           setAbierto(i)
                         }}
                       >
@@ -458,7 +478,7 @@ export default function Catalogo({ kind = 'insumo' }) {
 
       {abierto && (
         <Drawer
-          title={abierto === 'nuevo' ? `Nueva ${cfg.etiqueta.toLowerCase()}` : 'Editar item'}
+          title={abierto === 'nuevo' ? 'Nuevo item' : 'Editar item'}
           submitLabel={abierto === 'nuevo' ? 'Crear' : 'Guardar cambios'}
           onClose={() => setAbierto(null)}
           onSubmit={save}
@@ -472,20 +492,65 @@ export default function Catalogo({ kind = 'insumo' }) {
           </div>
 
           <Field label="Categoría">
-            <select value={form.category_id} onChange={onCategory}>
-              <option value="">Sin categoría</option>
-              {(categories.data ?? []).filter((c) => c.parent_id).map((c) => (
-                <option key={c.id} value={c.id}>{c.path}</option>
+            <select required value={form.catalog_category_id} onChange={onCategory}>
+              <option value="">Elegí una categoría</option>
+              {(categories.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.examples ? ` (${c.examples})` : ''}
+                </option>
               ))}
+              <option value={NUEVA_CATEGORIA}>+ Agregar categoría…</option>
             </select>
           </Field>
 
-          <Field label="Código" hint="Se sugiere solo al elegir categoría.">
-            <input required value={form.code} onChange={set('code')} />
-          </Field>
+          {nuevaCategoria && (
+            <Field label="Nueva categoría">
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  autoFocus
+                  value={nuevaCategoria.name}
+                  onChange={(e) => setNuevaCategoria({ name: e.target.value, error: null })}
+                  onBlur={() => setNuevaCategoria((n) => n && { ...n, name: titulo(n.name) })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      agregarCategoria()
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                />
+                <button type="button" className="btn" onClick={agregarCategoria}>
+                  Agregar
+                </button>
+                <button type="button" className="btn" onClick={() => setNuevaCategoria(null)}>
+                  Cancelar
+                </button>
+              </div>
+              {nuevaCategoria.error && <ErrorBox message={nuevaCategoria.error} />}
+            </Field>
+          )}
 
-          <Field label="Descripción">
-            <input required value={form.description} onChange={set('description')} />
+          <CampoCanonico
+            label="Qué es"
+            hint="El nombre genérico: Lava Manos, Bolsa De Cemento, Volquete. Elegí de la lista o escribí uno nuevo."
+            required
+            value={form.tipo}
+            onChange={(v) => setForm((f) => ({ ...f, tipo: v }))}
+            opciones={tipos.data ?? []}
+            listId="lista-tipos"
+          />
+
+          <CampoCanonico
+            label="Marca"
+            hint="Opcional. El fabricante, no el proveedor: Ferrum hace el lavamanos, Panamericana te lo vende."
+            value={form.marca}
+            onChange={(v) => setForm((f) => ({ ...f, marca: v }))}
+            opciones={marcas.data ?? []}
+            listId="lista-marcas"
+          />
+
+          <Field label="Código" hint="Se genera solo con la categoría y el “qué es”.">
+            <input readOnly tabIndex={-1} value={codigo} style={{ color: 'var(--text-muted)' }} />
           </Field>
 
           <Field
@@ -497,38 +562,8 @@ export default function Catalogo({ kind = 'insumo' }) {
             </select>
           </Field>
 
-          <Field label="Tipo">
-            <select value={form.kind} onChange={set('kind')}>
-              {Object.entries(KINDS).map(([k, v]) => (
-                <option key={k} value={k}>{v.titulo}</option>
-              ))}
-            </select>
-          </Field>
-
-          <CampoCanonico
-            label="Marca"
-            hint="El fabricante, no el proveedor: Ferrum hace el bidet, Panamericana te lo vende."
-            value={form.marca}
-            onChange={(v) => setForm((f) => ({ ...f, marca: v }))}
-            opciones={marcas.data ?? []}
-            listId="lista-marcas"
-          />
-
-          <CampoCanonico
-            label="Qué es"
-            hint="El tipo genérico: Bidet, Bacha, Caldera. Es lo que permite comparar precios entre artículos que hacen lo mismo."
-            value={form.tipo}
-            onChange={(v) => setForm((f) => ({ ...f, tipo: v }))}
-            opciones={tipos.data ?? []}
-            listId="lista-tipos"
-          />
-
-          <Field label="Código del fabricante" hint="El que figura en el catálogo de la marca. Ej: BKM1B.">
-            <input value={form.model_code} onChange={set('model_code')} />
-          </Field>
-
-          <Field label="Especificación">
-            <input value={form.spec} onChange={set('spec')} />
+          <Field label="Nota">
+            <textarea rows={3} value={form.note} onChange={set('note')} />
           </Field>
         </Drawer>
       )}

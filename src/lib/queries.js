@@ -418,8 +418,12 @@ export const listItemsPlain = () =>
 export const createItem = (payload) =>
   supabase.from('items').insert(payload).select().single().then(unwrap)
 
-export const suggestItemCode = (categoryId) =>
-  supabase.rpc('suggest_item_code', { p_category: categoryId }).then(unwrap)
+/* Categorías del catálogo: planas, cada una con el prefijo de sus códigos. */
+export const listCatalogCategories = () =>
+  supabase.from('catalog_categories').select('*').order('sort_order').then(unwrap)
+
+export const createCatalogCategory = (name) =>
+  supabase.from('catalog_categories').insert({ name }).select().single().then(unwrap)
 
 /* --- Cotizaciones --------------------------------------------------------- */
 
